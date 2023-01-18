@@ -134,7 +134,12 @@ def ortho_view(vol):
         print('Must be a 3D numpy array')
         return
 
-    print(vol.shape)
-    vol_shape = vol.shape
-    mid_slice = [int(np.floor(dim_len/2) for dim_len in vol_shape)]
+    mid_slice = [int(np.floor(dim_len/2)) for dim_len in vol.shape]
+    orth1 = vol[:,:,mid_slice[2]]
+    orth2 = vol[:,mid_slice[1],:]
+    orth3 = vol[mid_slice[0],:,:]
+    fig, ax = plt.subplots(1,3)
+    ax[0].imshow(orth1)
+    ax[1].imshow(orth2)
+    ax[2].imshow(orth3)
     return mid_slice    
