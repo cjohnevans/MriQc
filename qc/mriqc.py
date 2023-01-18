@@ -3,7 +3,8 @@ import numpy as np
 import os
 import matplotlib.pyplot as plt
 
-class fmriqc:
+# mriqc is generic for checking multi-volume MR data (e.g. fmri, qmt)
+class mriqc:
     '''
     fmriqc class: data and methods for dealing with fmri quality control data
     '''
@@ -20,51 +21,17 @@ class fmriqc:
         Load nifti file using nibabel load.
         Populate nii_img (nibabel) and vol_data (numpy array)
         
-        '''
-        
+        '''        
         self.nii_img = nib.load(os.path.join(self.nii_path, self.in_nii_file))
         # this will load as a proxy image
-        self.vol_data = self.nii_img.get_fdata()
-        self.n_vols = self.vol_data.shape[-1]
+        self.vol_data = self.nii_img.get_fdata()       
         self.affine = self.nii_img.affine
-        # calculate mean, stdev and ,asl
-        self.vol_mean = np.mean(self.vol_data,3)
-        #print('before mask')
-        #print(np.amax(np.amax(np.amax(self.vol_mean))))
-        self.vol_stdev = np.std(self.vol_data,3)
-        # mask at 25% of peak voxel intensity of mean image
-        self.mask = threshold_vol(self.vol_mean, True, 0.25)
-        self.vol_mean = self.vol_mean * self.mask
-        self.vol_stdev = self.vol_stdev * self.mask
-
-    def calc_sfnr(self):
-        '''
-        calc_sfnr():  calculate timeseries mean, standard deviation and signal to
-                    fluctuation noise sfnr (Glover)
-
-        Populates:
-        vol_mean = mean signal across timeseries
-        vol_stdev = standard deviation of signal across timepoints
-        vol_sfnr = signal to fluctuation noise sfnr (Glover)
-
-        Outputs:
-        fmriqc_mean.nii, fmriqc_stdev.nii, fmriqc_sfnr.nii
-        
-        '''
-
-        # deal with nans.  
-        #vol_sfnr = vol_mean / vol_stdev
-        self.vol_sfnr = np.divide(self.vol_mean, self.vol_stdev, \
-                             out=np.zeros_like(self.vol_mean), \
-                             where=self.vol_stdev!=0)
-
-        # create nifti, using same affine transform as original
-        nii_mean = nib.Nifti1Image(self.vol_mean, self.affine)
-        nii_stdev = nib.Nifti1Image(self.vol_stdev, self.affine)
-        nii_sfnr = nib.Nifti1Image(self.vol_sfnr, self.affine)
-        nib.save(nii_mean, os.path.join(self.nii_path, 'fmriqc_mean.nii'))
-        nib.save(nii_stdev, os.path.join(self.nii_path, 'fmriqc_stdev.nii'))
-        nib.save(nii_sfnr, os.path.join(self.nii_path, 'fmriqc_sfnr.nii'))
+        if self.vol_data.ndim > 3:
+            self.is_multi_volume = True
+            self.n_vols = self.vol_data.shape[-1]
+        else:
+            self.is_multi_volume = False
+            self.n_vols = 1
 
     def plot_histogram(self):
         '''
@@ -82,6 +49,49 @@ class fmriqc:
         ax.set_ylabel('Number of pixels (all volumes)')
         ax.set_title('Image timeseries histogram')
         fig.savefig(os.path.join(self.nii_path, 'pixel_histogram.png'))
+
+# methods specific to fmri
+class fmriqc(mriqc):
+    '''
+    methods specific to fmri (inherited from mriqc)
+    '''
+    is_fmri = True
+
+    def calc_sfnr(self):
+        '''
+        fmriqc.calc_sfnr():  calculate timeseries mean, standard deviation and signal to
+                    fluctuation noise sfnr (Glover)
+
+        Populates:
+        vol_mean = mean signal across timeseries
+        vol_stdev = standard deviation of signal across timepoints
+        vol_sfnr = signal to fluctuation noise sfnr (Glover)
+
+        Outputs:
+        fmriqc_mean.nii, fmriqc_stdev.nii, fmriqc_sfnr.nii
+        
+        '''
+        # calculate mean, stdev and sfnr
+        self.vol_mean = np.mean(self.vol_data,3)
+        self.vol_stdev = np.std(self.vol_data,3)
+        # mask at 25% of peak voxel intensity of mean image
+        self.mask = threshold_vol(self.vol_mean, True, 0.25)
+        self.vol_mean = self.vol_mean * self.mask
+        self.vol_stdev = self.vol_stdev * self.mask
+
+        # deal with nans.  
+        self.vol_sfnr = np.divide(self.vol_mean, self.vol_stdev, \
+                             out=np.zeros_like(self.vol_mean), \
+                             where=self.vol_stdev!=0)
+
+        # create nifti, using same affine transform as original
+        nii_mean = nib.Nifti1Image(self.vol_mean, self.affine)
+        nii_stdev = nib.Nifti1Image(self.vol_stdev, self.affine)
+        nii_sfnr = nib.Nifti1Image(self.vol_sfnr, self.affine)
+        nib.save(nii_mean, os.path.join(self.nii_path, 'fmriqc_mean.nii'))
+        nib.save(nii_stdev, os.path.join(self.nii_path, 'fmriqc_stdev.nii'))
+        nib.save(nii_sfnr, os.path.join(self.nii_path, 'fmriqc_sfnr.nii'))
+
 
 def threshold_vol(vol, by_fraction, threshold):
     '''
@@ -108,3 +118,23 @@ def threshold_vol(vol, by_fraction, threshold):
     mask[mask<pixel_threshold] = 0
     mask[mask>=pixel_threshold] = 1
     return mask
+
+def ortho_view(vol):
+    '''
+    mriqc.ortho_view(vol)
+
+    Params:
+    vol: 3D numpy array to display.  Can't be multi_volume
+    
+    Show middle slice in three orthogonal views
+    '''
+
+    if vol.ndim != 3:
+        print('vol has ' + str(vol.ndim) + ' volumes')
+        print('Must be a 3D numpy array')
+        return
+
+    print(vol.shape)
+    vol_shape = vol.shape
+    mid_slice = [int(np.floor(dim_len/2) for dim_len in vol_shape)]
+    return mid_slice    
