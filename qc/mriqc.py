@@ -33,23 +33,6 @@ class mriqc:
             self.is_multi_volume = False
             self.n_vols = 1
 
-    def plot_histogram(self):
-        '''
-        plot_histogram(): 
-
-        Plots a histogram of all pixel values, across all values in the timeseries.
-        Saves histogram in a png file
-        '''
-        hist = np.histogram(self.vol_data,100)
-        bins = hist[1][1:]  # bins includes both ends, take the higher value
-        vals = hist[0]
-        fig,ax = plt.subplots(1)
-        ax.plot(bins, vals)
-        ax.set_xlabel('Pixel Value')
-        ax.set_ylabel('Number of pixels (all volumes)')
-        ax.set_title('Image timeseries histogram')
-        fig.savefig(os.path.join(self.nii_path, 'pixel_histogram.png'))
-
 # methods specific to fmri
 class fmriqc(mriqc):
     '''
@@ -83,6 +66,8 @@ class fmriqc(mriqc):
         self.vol_sfnr = np.divide(self.vol_mean, self.vol_stdev, \
                              out=np.zeros_like(self.vol_mean), \
                              where=self.vol_stdev!=0)
+
+        ortho_view(self.vol_sfnr, 'SFNR')
 
         # create nifti, using same affine transform as original
         nii_mean = nib.Nifti1Image(self.vol_mean, self.affine)
@@ -119,10 +104,10 @@ def threshold_vol(vol, by_fraction, threshold):
     mask[mask>=pixel_threshold] = 1
     return mask
 
-def ortho_view(vol):
+def ortho_view(vol, title):
     '''
     mriqc.ortho_view(vol)
-
+s
     Params:
     vol: 3D numpy array to display.  Can't be multi_volume
     
@@ -135,11 +120,35 @@ def ortho_view(vol):
         return
 
     mid_slice = [int(np.floor(dim_len/2)) for dim_len in vol.shape]
-    orth1 = vol[:,:,mid_slice[2]]
-    orth2 = vol[:,mid_slice[1],:]
-    orth3 = vol[mid_slice[0],:,:]
+    orth = []
+    
+    orth.append(vol[:,:,mid_slice[2]])
+    orth.append(vol[:,mid_slice[1],:])
+    orth.append(vol[mid_slice[0],:,:])
     fig, ax = plt.subplots(1,3)
-    ax[0].imshow(orth1)
-    ax[1].imshow(orth2)
-    ax[2].imshow(orth3)
-    return mid_slice    
+    for view in [0,1,2]:
+        ax[view].imshow(orth[view])
+        ax[view].set_xticks([])
+        ax[view].set_yticks([])
+    ax[1].set_title(title)
+ 
+    return mid_slice
+
+def plot_histogram(vol, save_png):
+    '''
+    plot_histogram(): 
+
+    Plots a histogram of all pixel values, across all values in 3D or 4D
+    numpy array.
+    Saves histogram in a png file
+    '''
+    hist = np.histogram(vol,100)
+    bins = hist[1][1:]  # bins includes both ends, take the higher value
+    vals = hist[0]
+    fig,ax = plt.subplots(1)
+    ax.plot(bins, vals)
+    ax.set_xlabel('Pixel Value')
+    ax.set_ylabel('Number of pixels')
+    ax.set_title('Image histogram')
+    if save_png:
+        fig.savefig(os.path.join(self.nii_path, 'pixel_histogram.png'))
