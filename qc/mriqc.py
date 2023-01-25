@@ -24,7 +24,11 @@ class mriqc:
         '''        
         self.nii_img = nib.load(os.path.join(self.nii_path, self.in_nii_file))
         # this will load as a proxy image
-        self.vol_data = self.nii_img.get_fdata()       
+        self.vol_data = self.nii_img.get_fdata()
+        # reverse order of axes, so that we have [vol, slice, phase, read]
+        self.vol_data = np.transpose(self.vol_data)
+        print('Data size:')
+        print(self.vol_data.shape)
         self.affine = self.nii_img.affine
         if self.vol_data.ndim > 3:
             self.is_multi_volume = True
@@ -55,8 +59,8 @@ class fmriqc(mriqc):
         
         '''
         # calculate mean, stdev and sfnr
-        self.vol_mean = np.mean(self.vol_data,3)
-        self.vol_stdev = np.std(self.vol_data,3)
+        self.vol_mean = np.mean(self.vol_data,0)
+        self.vol_stdev = np.std(self.vol_data,0)
         # mask at 25% of peak voxel intensity of mean image
         self.mask = threshold_vol(self.vol_mean, True, 0.25)
         self.vol_mean = self.vol_mean * self.mask
@@ -127,7 +131,7 @@ s
     orth.append(vol[mid_slice[0],:,:])
     fig, ax = plt.subplots(1,3)
     for view in [0,1,2]:
-        ax[view].imshow(orth[view])
+        ax[view].imshow(orth[view], origin='lower')
         ax[view].set_xticks([])
         ax[view].set_yticks([])
     ax[1].set_title(title)
@@ -152,3 +156,16 @@ def plot_histogram(vol, save_png):
     ax.set_title('Image histogram')
     if save_png:
         fig.savefig(os.path.join(self.nii_path, 'pixel_histogram.png'))
+
+
+def lightbox(vol, save_png):
+    '''
+    lightbox():
+
+    Plot image volume as multi-slice lightbox.  
+    '''
+    # max width of figure, in pixels
+    fig_width = 800
+    img_w = vol.shape[-1] # image width
+    horiz_images = np.floor(fig_width / img_w)
+    
