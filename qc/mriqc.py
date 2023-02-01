@@ -93,6 +93,29 @@ class fmriqc(mriqc):
         nib.save(nii_stdev, os.path.join(self.nii_path, 'fmriqc_stdev.nii'))
         nib.save(nii_sfnr, os.path.join(self.nii_path, 'fmriqc_sfnr.nii'))
 
+    def slice_time_plot(self, save_png=False):
+        '''
+        slice_time_plot(save_png=False)
+
+        Plot mean signal from each slice for all time points
+
+        Parameters:
+        save_fig:  Boolean.  Save figure as image
+        
+        '''
+
+        slice_time = np.mean(np.mean(self.vol_data, axis=3), axis=2).T
+
+        fig = plt.figure(figsize=(30/2.5, 20/2.5))
+        ax = fig.subplots()
+        ax.set_title('Mean signal per slice, volume')
+        ax.set_xlabel('Volume No.')
+        ax.set_ylabel('Slice No.')
+        im = ax.imshow(slice_time, cmap='plasma')
+        if save_png:
+            fig.savefig(os.path.join(self.report_path,'slice_time.png'))
+        
+
     def create_report(self):
         html_fname = os.path.join(self.report_path, 'fmriqc_report.html')
 
@@ -110,6 +133,7 @@ class fmriqc(mriqc):
             f.write('</table>\n')
             f.write("<img src=" + self.report_path + "/SFNR.png>\n")
             f.write("<img src=" + self.report_path + "/pixel_histogram.png>\n")
+            f.write("<img src=" + self.report_path + "/slice_time.png\n")
             f.write('</body>\n')
         
 
