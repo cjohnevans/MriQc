@@ -13,6 +13,11 @@ class mriqc:
         self.nii_path = path
         self.invivo = False # default to phantom
         self.sfnr = 0
+        # load the data here
+        self.nii_load()
+        self.report_path = os.path.join(self.nii_path, 'report')
+        if not os.path.exists(self.report_path):
+            os.mkdir(self.report_path)
 
     def nii_load(self):
         '''
@@ -44,10 +49,15 @@ class fmriqc(mriqc):
     '''
     is_fmri = True
 
-    def calc_sfnr(self):
+    def calc_sfnr(self, savepng=False):
         '''
-        fmriqc.calc_sfnr():  calculate timeseries mean, standard deviation and signal to
+        fmriqc.calc_sfnr(savepng=False):
+
+        calculate timeseries mean, standard deviation and signal to
                     fluctuation noise sfnr (Glover)
+
+        Parameters:
+        savepng - save ortho_view of SFNR, if required
 
         Populates:
         vol_mean = mean signal across timeseries
@@ -71,7 +81,7 @@ class fmriqc(mriqc):
                              out=np.zeros_like(self.vol_mean), \
                              where=self.vol_stdev!=0)
 
-        ortho_view(self.vol_sfnr, 'SFNR')
+        ortho_view(self.vol_sfnr, title='SFNR', save_png=savepng, save_dir=self.report_path)
 
         # create nifti, using same affine transform as original
         nii_mean = nib.Nifti1Image(self.vol_mean, self.affine)
@@ -81,11 +91,20 @@ class fmriqc(mriqc):
         nib.save(nii_stdev, os.path.join(self.nii_path, 'fmriqc_stdev.nii'))
         nib.save(nii_sfnr, os.path.join(self.nii_path, 'fmriqc_sfnr.nii'))
 
-    def write_html(self):
-        html_fname = os.path.join(self.nii_path, 'fmriqc_report.html')
-        with f as open(html_fname, 'w'):
-            f.write('<!doctype=html><title>fMRI QC</title><body><p>fMRI QC Report</p>')
-            f.write('</body>')
+    def create_report(self):
+        html_fname = os.path.join(self.report_path, 'fmriqc_report.html')
+
+        # build the elements needed, in case not run already
+        # sfnr
+        self.calc_sfnr(savepng=True)
+        # histogram of all image values (4D)
+        plot_histogram(self.vol_data,save_png=True, save_path=self.report_path)
+
+        with open(html_fname, 'w') as f:
+            f.write('<!doctype=html><title>fMRI QC</title>\n<body>\n<p>fMRI QC Report</p>\n')
+            f.write("<img src=" + self.report_path + "/SFNR.png>\n")
+            f.write("<img src=" + self.report_path + "/pixel_histogram.png>\n")
+            f.write('</body>\n')
         
 
 
@@ -115,12 +134,14 @@ def threshold_vol(vol, by_fraction, threshold):
     mask[mask>=pixel_threshold] = 1
     return mask
 
-def ortho_view(vol, title):
+def ortho_view(vol, title='image', save_png=False, save_dir='.'):
     '''
-    mriqc.ortho_view(vol)
+    mriqc.ortho_view(vol, title='image', savepng=False, )
 s
     Params:
     vol: 3D numpy array to display.  Can't be multi_volume
+    title: plot title
+    save_png: save output as png
     
     Show middle slice in three orthogonal views
     '''
@@ -144,7 +165,6 @@ s
             vmax = np.amax(np.ravel(sl))
         if np.amin(np.ravel(sl)) < vmin:
             vmin = np.amin(np.ravel(sl))
-        print(vmin, vmax)
     
     fig = plt.figure(figsize=(30/2.56, 20/2.56))
     ax = fig.subplots(2,2)
@@ -156,13 +176,21 @@ s
              ax[r,c].axis('off')
     ax[1,1].set_title(title)
     fig.colorbar(im3) #place the colormap in bottom left
+    if save_png:
+        fig.savefig(os.path.join(save_dir, title + '.png'))
  
     return mid_slice
 
-def plot_histogram(vol, save_png):
+def plot_histogram(vol, save_png=False, save_path = '.'):
     '''
-    plot_histogram(): 
+    plot_histogram(vol, save_png=False, save_path='.'):
 
+    Parameters:
+    vol = 3D or 4D np array
+    save_png = save output as png
+    save_path = directory to save png
+
+    
     Plots a histogram of all pixel values, across all values in 3D or 4D
     numpy array.  Zero values discarded 
     Saves histogram in a png file
@@ -177,7 +205,7 @@ def plot_histogram(vol, save_png):
     ax.set_ylabel('Number of pixels')
     ax.set_title('Image histogram')
     if save_png:
-        fig.savefig(os.path.join(self.nii_path, 'pixel_histogram.png'))
+        fig.savefig(os.path.join(save_path, 'pixel_histogram.png'))
 
 
     
