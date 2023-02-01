@@ -27,8 +27,8 @@ class mriqc:
         self.vol_data = self.nii_img.get_fdata()
         # reverse order of axes, so that we have [vol, slice, phase, read]
         self.vol_data = np.transpose(self.vol_data)
-        print('Data size:')
-        print(self.vol_data.shape)
+#        print('Data size:')
+#        print(self.vol_data.shape)
         self.affine = self.nii_img.affine
         if self.vol_data.ndim > 3:
             self.is_multi_volume = True
@@ -81,6 +81,13 @@ class fmriqc(mriqc):
         nib.save(nii_stdev, os.path.join(self.nii_path, 'fmriqc_stdev.nii'))
         nib.save(nii_sfnr, os.path.join(self.nii_path, 'fmriqc_sfnr.nii'))
 
+    def write_html(self):
+        html_fname = os.path.join(self.nii_path, 'fmriqc_report.html')
+        with f as open(html_fname, 'w'):
+            f.write('<!doctype=html><title>fMRI QC</title><body><p>fMRI QC Report</p>')
+            f.write('</body>')
+        
+
 
 def threshold_vol(vol, by_fraction, threshold):
     '''
@@ -125,16 +132,30 @@ s
 
     mid_slice = [int(np.floor(dim_len/2)) for dim_len in vol.shape]
     orth = []
-    
+    vmax = -10000
+    vmin = 10000
     orth.append(vol[:,:,mid_slice[2]])
     orth.append(vol[:,mid_slice[1],:])
     orth.append(vol[mid_slice[0],:,:])
-    fig, ax = plt.subplots(1,3)
-    for view in [0,1,2]:
-        ax[view].imshow(orth[view], origin='lower')
-        ax[view].set_xticks([])
-        ax[view].set_yticks([])
-    ax[1].set_title(title)
+
+    # get max, min values from orth slices
+    for sl in orth:
+        if np.amax(np.ravel(sl)) > vmax:
+            vmax = np.amax(np.ravel(sl))
+        if np.amin(np.ravel(sl)) < vmin:
+            vmin = np.amin(np.ravel(sl))
+        print(vmin, vmax)
+    
+    fig = plt.figure(figsize=(30/2.56, 20/2.56))
+    ax = fig.subplots(2,2)
+    im1=ax[0,0].imshow(orth[0], origin='lower', cmap='gray', vmax=vmax, vmin=vmin)
+    im2=ax[0,1].imshow(orth[1], origin='lower', cmap='gray', vmax=vmax, vmin=vmin)
+    im3=ax[1,0].imshow(orth[2], origin='lower', cmap='gray', vmax=vmax, vmin=vmin)
+    for r in [0,1]:
+        for c in [0,1]:
+             ax[r,c].axis('off')
+    ax[1,1].set_title(title)
+    fig.colorbar(im3) #place the colormap in bottom left
  
     return mid_slice
 
@@ -143,10 +164,11 @@ def plot_histogram(vol, save_png):
     plot_histogram(): 
 
     Plots a histogram of all pixel values, across all values in 3D or 4D
-    numpy array.
+    numpy array.  Zero values discarded 
     Saves histogram in a png file
     '''
-    hist = np.histogram(vol,100)
+
+    hist = np.histogram(vol[vol>0],100)
     bins = hist[1][1:]  # bins includes both ends, take the higher value
     vals = hist[0]
     fig,ax = plt.subplots(1)
@@ -158,14 +180,4 @@ def plot_histogram(vol, save_png):
         fig.savefig(os.path.join(self.nii_path, 'pixel_histogram.png'))
 
 
-def lightbox(vol, save_png):
-    '''
-    lightbox():
-
-    Plot image volume as multi-slice lightbox.  
-    '''
-    # max width of figure, in pixels
-    fig_width = 800
-    img_w = vol.shape[-1] # image width
-    horiz_images = np.floor(fig_width / img_w)
     
