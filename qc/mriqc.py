@@ -80,6 +80,8 @@ class fmriqc(mriqc):
         self.vol_sfnr = np.divide(self.vol_mean, self.vol_stdev, \
                              out=np.zeros_like(self.vol_mean), \
                              where=self.vol_stdev!=0)
+        # discard zero values (as these are probably from the mask)
+        self.sfnr = np.mean(np.ravel(self.vol_sfnr[self.vol_sfnr!=0]))
 
         ortho_view(self.vol_sfnr, title='SFNR', save_png=savepng, save_dir=self.report_path)
 
@@ -102,6 +104,10 @@ class fmriqc(mriqc):
 
         with open(html_fname, 'w') as f:
             f.write('<!doctype=html><title>fMRI QC</title>\n<body>\n<p>fMRI QC Report</p>\n')
+            
+            f.write('<table><tr><td>Image Dimensions</td><td>' + str(self.vol_data.shape) + "</td></tr>\n")
+            f.write('<tr><td>SFNR</td><td>' + str(self.sfnr) + "</td></tr>\n")
+            f.write('</table>\n')
             f.write("<img src=" + self.report_path + "/SFNR.png>\n")
             f.write("<img src=" + self.report_path + "/pixel_histogram.png>\n")
             f.write('</body>\n')

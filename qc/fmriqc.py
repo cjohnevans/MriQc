@@ -8,7 +8,6 @@ nii_path = '/home/sapje1/scratch_sapje1/fmriqc/251_alspac/'
 nii_file = 'alspacfmri.nii'
 
 fmri = mriqc.fmriqc(nii_path,nii_file,True)
-fmri.nii_load()
 fmri.calc_sfnr()
 #mriqc.plot_histogram(fmri.vol_data,False)
 #mriqc.ortho_view(fmri.vol_mean, 'Mean Volume')
