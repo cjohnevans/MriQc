@@ -124,16 +124,24 @@ class fmriqc(mriqc):
         self.calc_sfnr(savepng=True)
         # histogram of all image values (4D)
         plot_histogram(self.vol_data,save_png=True, save_path=self.report_path)
+        self.slice_time_plot(True)
 
         with open(html_fname, 'w') as f:
             f.write('<!doctype=html><title>fMRI QC</title>\n<body>\n<p>fMRI QC Report</p>\n')
-            
+        
             f.write('<table><tr><td>Image Dimensions</td><td>' + str(self.vol_data.shape) + "</td></tr>\n")
             f.write('<tr><td>SFNR</td><td>' + str(self.sfnr) + "</td></tr>\n")
             f.write('</table>\n')
-            f.write("<img src=" + self.report_path + "/SFNR.png>\n")
-            f.write("<img src=" + self.report_path + "/pixel_histogram.png>\n")
-            f.write("<img src=" + self.report_path + "/slice_time.png\n")
+            pp = os.path.join(self.report_path, 'SFNR.png')
+            pp = os.path.join('SFNR.png')
+            f.write('<img src="' + pp + '">\n')
+            pp = os.path.join(self.report_path, 'pixel_histogram.png')
+            pp = os.path.join('pixel_histogram.png')
+            f.write('<img src="' + pp + '">\n')
+            pp = os.path.join(self.report_path, 'slice_time.png')      
+            pp = os.path.join('slice_time.png')      
+            f.write('<img src="' + pp + '">\n')
+            pp = os
             f.write('</body>\n')
         
 
