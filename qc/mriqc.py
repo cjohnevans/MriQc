@@ -141,7 +141,6 @@ class fmriqc(mriqc):
             pp = os.path.join(self.report_path, 'slice_time.png')      
             pp = os.path.join('slice_time.png')      
             f.write('<img src="' + pp + '">\n')
-            pp = os
             f.write('</body>\n')
         
 
