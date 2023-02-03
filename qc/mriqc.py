@@ -133,7 +133,7 @@ class fmriqc(mriqc):
             f.write('</table>\n')
             f.write("<img src=" + self.report_path + "/SFNR.png>\n")
             f.write("<img src=" + self.report_path + "/pixel_histogram.png>\n")
-            f.write("<img src=" + self.report_path + "/slice_time.png\n")
+            f.write("<img src=" + self.report_path + "/slice_time.png>\n")
             f.write('</body>\n')
         
 

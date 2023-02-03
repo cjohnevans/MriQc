@@ -9,6 +9,9 @@ function [Results, SFNR_nii, epimasknii] = epiQA_Siemens(fname)
 %epi=load_nifti(fname);
 % This preproc now done in setup files - so assume it's *.nii
 %epi = load_nii_gz(fname);
+
+addpath('/home/sapje1/code/nifti_toolbox')
+
 epi = load_nii(fname);
 epi.vol = double(flipdim(epi.img, 1));
 
@@ -309,13 +312,13 @@ outd = ['EPI QA analysis saved to ' pdfname ];
 disp(outd)
 
 %work out filename, date and time.  Assumes filename of the format
-% QA3TE-GloverGSQAP-20_03_16-14_15_48-STD-1_3_12_2_1107_5_2_43_66075
+%QA3TE-GloverGSQAP-20_03_16-14_15_48-STD-1_3_12_2_1107_5_2_43_66075
 fname_short_split = strsplit(fname_short, '-');
 
 Results.File = fname_short;
-Results.Scanner = fname_short_split{1};
-Results.Date = fname_short_split{3};
-Results.Time = fname_short_split{4};
+%Results.Scanner = fname_short_split{1};
+%Results.Date = fname_short_split{3};
+%Results.Time = fname_short_split{4};
 Results.SNR_roi = round(SNR_Summary, 2); %roi
 Results.SNR_vol = round(SNR_vol,2);
 Results.SFNR_roi = round(SFNR_Summary,2);
