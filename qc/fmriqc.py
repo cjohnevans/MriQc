@@ -11,5 +11,6 @@ else:
     nii_file = 'alspacfmri.nii'
 
 
-fmri = mriqc.fmriqc(nii_path,nii_file,True)
+fmri = mriqc.phantomfmriqc(nii_path,nii_file,True)
+fmri.voi((20,20,20))
 fmri.create_report()

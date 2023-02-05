@@ -143,7 +143,35 @@ class fmriqc(mriqc):
             f.write('<img src="' + pp + '">\n')
             f.write('</body>\n')
         
-
+class phantomfmriqc(fmriqc):
+    '''
+    Methods for analysis of fMRI phantom qc (Glover and other protocols)
+    '''
+    is_phantom_fmri = True
+    
+    def voi(self, box_size):
+        '''
+        phantomfmriqc.voi(
+            box_size
+        )
+        
+        Params:
+            box_size: 3 elemet tuple of dimensions (slices, rows, cols)
+            
+        '''
+        # midpoints of slice, row, columns
+        # for even numbers, midpoint will be start of second half of data (zero indexing)
+        mid_points =  [int(np.floor(dim/2)) for dim in self.vol_data.shape[1:]]
+        start = []
+        end = []
+        for ii in range(0,3):
+            start.append(mid_points[ii]-int(np.floor(box_size[ii])/2))
+            end.append(start[ii]+box_size[ii])
+        print(self.vol_data.shape)  
+        print(mid_points)
+        print(box_size)
+        print(start)  
+        print(end)
 
 def threshold_vol(vol, by_fraction, threshold):
     '''
