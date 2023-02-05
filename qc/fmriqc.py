@@ -12,5 +12,6 @@ else:
 
 
 fmri = mriqc.phantomfmriqc(nii_path,nii_file,True)
-fmri.voi((20,20,20))
+fmri.voi((10,20,20))
 fmri.create_report()
+fmri.calc_sfnr(fmri.mask)

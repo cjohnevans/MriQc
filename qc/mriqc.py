@@ -15,6 +15,7 @@ class mriqc:
         self.sfnr = 0
         # load the data here
         self.nii_load()
+        self.basic_stats()
         self.report_path = os.path.join(self.nii_path, 'report')
         if not os.path.exists(self.report_path):
             os.mkdir(self.report_path)
@@ -32,12 +33,11 @@ class mriqc:
         self.vol_data = self.nii_img.get_fdata()
         # reverse order of axes, so that we have [vol, slice, phase, read]
         self.vol_data = np.transpose(self.vol_data)
-#        print('Data size:')
-#        print(self.vol_data.shape)
+        self.shape = self.vol_data.shape
         self.affine = self.nii_img.affine
         if self.vol_data.ndim > 3:
             self.is_multi_volume = True
-            self.n_vols = self.vol_data.shape[-1]
+            self.n_vols = self.shape[-1]
         else:
             self.is_multi_volume = False
             self.n_vols = 1
@@ -48,15 +48,34 @@ class fmriqc(mriqc):
     methods specific to fmri (inherited from mriqc)
     '''
     is_fmri = True
-
-    def calc_sfnr(self, savepng=False):
+    
+    def basic_stats(self):
         '''
-        fmriqc.calc_sfnr(savepng=False):
+        fmriqc.basic_stats( 
+            )
+        
+        Calculate mean signal and stdev for each voxel
+        '''
+        # calculate volume mean, stdev and sfnr
+        self.vol_mean = np.mean(self.vol_data,0)
+        self.vol_stdev = np.std(self.vol_data,0)
+        
+
+    def calc_sfnr(self, mask=None, savepng=False):
+        '''
+        fmriqc.calc_sfnr(
+            volume_sfnr=False
+            mask=False
+            savepng=False
+            )
 
         calculate timeseries mean, standard deviation and signal to
                     fluctuation noise sfnr (Glover)
 
         Parameters:
+        volume_sfnr - calculate sfnr on on whole volume (thresholded) otherwise
+                      voi defined by mask     
+        mask - 3D np array of booleans defining the mask
         savepng - save ortho_view of SFNR, if required
 
         Populates:
@@ -68,22 +87,25 @@ class fmriqc(mriqc):
         fmriqc_mean.nii, fmriqc_stdev.nii, fmriqc_sfnr.nii
         
         '''
-        # calculate mean, stdev and sfnr
-        self.vol_mean = np.mean(self.vol_data,0)
-        self.vol_stdev = np.std(self.vol_data,0)
-        # mask at 25% of peak voxel intensity of mean image
-        self.mask = threshold_vol(self.vol_mean, True, 0.25)
-        self.vol_mean = self.vol_mean * self.mask
-        self.vol_stdev = self.vol_stdev * self.mask
+        #  if volume sfnr required (i.e. no mask specified), calculate based on 
+        #  threshold of mean volume
+        if not np.any(mask):
+            # mask at 25% of peak voxel intensity of mean image
+            mask = threshold_vol(self.vol_mean, True, 0.25)
+        self.vol_mean = self.vol_mean * mask
+        self.vol_stdev = self.vol_stdev * mask
 
         # deal with nans.  
         self.vol_sfnr = np.divide(self.vol_mean, self.vol_stdev, \
                              out=np.zeros_like(self.vol_mean), \
                              where=self.vol_stdev!=0)
+
+        ortho_view(self.vol_sfnr, title='SFNR', save_png=savepng, save_dir=self.report_path)
+
+
         # discard zero values (as these are probably from the mask)
         self.sfnr = np.mean(np.ravel(self.vol_sfnr[self.vol_sfnr!=0]))
 
-        ortho_view(self.vol_sfnr, title='SFNR', save_png=savepng, save_dir=self.report_path)
 
         # create nifti, using same affine transform as original
         nii_mean = nib.Nifti1Image(self.vol_mean, self.affine)
@@ -92,7 +114,9 @@ class fmriqc(mriqc):
         nib.save(nii_mean, os.path.join(self.nii_path, 'fmriqc_mean.nii'))
         nib.save(nii_stdev, os.path.join(self.nii_path, 'fmriqc_stdev.nii'))
         nib.save(nii_sfnr, os.path.join(self.nii_path, 'fmriqc_sfnr.nii'))
-
+        
+        return self.sfnr
+    
     def slice_time_plot(self, save_png=False):
         '''
         slice_time_plot(save_png=False)
@@ -105,6 +129,9 @@ class fmriqc(mriqc):
         '''
 
         slice_time = np.mean(np.mean(self.vol_data, axis=3), axis=2).T
+        slice_mean = np.mean(np.mean(np.mean(self.vol_data, axis=3), axis=2),axis=0).T 
+        slice_mean = np.tile(slice_mean,[self.shape[0],1]).T
+        slice_time = slice_time - slice_mean
 
         fig = plt.figure(figsize=(30/2.5, 20/2.5))
         ax = fig.subplots()
@@ -118,9 +145,9 @@ class fmriqc(mriqc):
 
     def create_report(self):
         html_fname = os.path.join(self.report_path, 'fmriqc_report.html')
-
         # build the elements needed, in case not run already
         # sfnr
+        self.basic_stats() 
         self.calc_sfnr(savepng=True)
         # histogram of all image values (4D)
         plot_histogram(self.vol_data,save_png=True, save_path=self.report_path)
@@ -129,7 +156,7 @@ class fmriqc(mriqc):
         with open(html_fname, 'w') as f:
             f.write('<!doctype=html><title>fMRI QC</title>\n<body>\n<p>fMRI QC Report</p>\n')
         
-            f.write('<table><tr><td>Image Dimensions</td><td>' + str(self.vol_data.shape) + "</td></tr>\n")
+            f.write('<table><tr><td>Image Dimensions</td><td>' + str(self.shape) + "</td></tr>\n")
             f.write('<tr><td>SFNR</td><td>' + str(self.sfnr) + "</td></tr>\n")
             f.write('</table>\n')
             pp = os.path.join(self.report_path, 'SFNR.png')
@@ -161,17 +188,20 @@ class phantomfmriqc(fmriqc):
         '''
         # midpoints of slice, row, columns
         # for even numbers, midpoint will be start of second half of data (zero indexing)
-        mid_points =  [int(np.floor(dim/2)) for dim in self.vol_data.shape[1:]]
+        mid_points =  [int(np.floor(dim/2)) for dim in self.shape[1:]]
         start = []
         end = []
         for ii in range(0,3):
             start.append(mid_points[ii]-int(np.floor(box_size[ii])/2))
             end.append(start[ii]+box_size[ii])
-        print(self.vol_data.shape)  
+        print(self.shape)  
         print(mid_points)
         print(box_size)
         print(start)  
         print(end)
+        self.mask = np.zeros(self.shape[1:])
+        self.mask[start[0]:end[0], start[1]:end[1], start[2]:end[2]]=1
+
 
 def threshold_vol(vol, by_fraction, threshold):
     '''
