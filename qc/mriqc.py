@@ -22,7 +22,7 @@ class mriqc:
 
     def nii_load(self):
         '''
-        nii_load()
+        mriqc.nii_load()
 
         Load nifti file using nibabel load.
         Populate nii_img (nibabel) and vol_data (numpy array)
@@ -41,7 +41,26 @@ class mriqc:
         else:
             self.is_multi_volume = False
             self.n_vols = 1
+            
+    def mean_timeseries(self, mask=False):
+        '''
+        mriqc.mean_timeseries(
+            mask=False
+            )
+        
+        Calculate mean signal across whole volume or masked volume for each 
+        timepoint in 4D dataset.
+        
+        Returns
+        -------
+        None.
 
+        '''
+        
+        
+        self.timeseries=np.mean(np.mean(np.mean(self.vol_data, axis=3), axis=2), axis=1)
+        
+        
 # methods specific to fmri
 class fmriqc(mriqc):
     '''
@@ -64,7 +83,6 @@ class fmriqc(mriqc):
     def calc_sfnr(self, mask=None, savepng=False):
         '''
         fmriqc.calc_sfnr(
-            volume_sfnr=False
             mask=False
             savepng=False
             )
@@ -73,18 +91,16 @@ class fmriqc(mriqc):
                     fluctuation noise sfnr (Glover)
 
         Parameters:
-        volume_sfnr - calculate sfnr on on whole volume (thresholded) otherwise
-                      voi defined by mask     
-        mask - 3D np array of booleans defining the mask
-        savepng - save ortho_view of SFNR, if required
+            mask - 3D np array of booleans defining the mask
+            savepng - save ortho_view of SFNR, if required
 
-        Populates:
-        vol_mean = mean signal across timeseries
-        vol_stdev = standard deviation of signal across timepoints
-        vol_sfnr = signal to fluctuation noise sfnr (Glover)
+        Returns:
+            sfnr            
 
         Outputs:
-        fmriqc_mean.nii, fmriqc_stdev.nii, fmriqc_sfnr.nii
+        self.vol_mean = mean signal across timeseries
+        self.vol_stdev = standard deviation of signal across timepoints
+        self.vol_sfnr = signal to fluctuation noise sfnr (Glover)
         
         '''
         #  if volume sfnr required (i.e. no mask specified), calculate based on 
@@ -92,21 +108,21 @@ class fmriqc(mriqc):
         if not np.any(mask):
             # mask at 25% of peak voxel intensity of mean image
             mask = threshold_vol(self.vol_mean, True, 0.25)
+        # mask is 1 for pixels within mask, NaN for those outside
         self.vol_mean = self.vol_mean * mask
         self.vol_stdev = self.vol_stdev * mask
 
-        # deal with nans.  
+        # deal with inf.  
         self.vol_sfnr = np.divide(self.vol_mean, self.vol_stdev, \
                              out=np.zeros_like(self.vol_mean), \
                              where=self.vol_stdev!=0)
 
         ortho_view(self.vol_sfnr, title='SFNR', save_png=savepng, save_dir=self.report_path)
 
-
         # discard zero values (as these are probably from the mask)
-        self.sfnr = np.mean(np.ravel(self.vol_sfnr[self.vol_sfnr!=0]))
-
-
+        sfnr = np.nanmean(np.ravel(self.vol_sfnr))
+        print(sfnr)
+        
         # create nifti, using same affine transform as original
         nii_mean = nib.Nifti1Image(self.vol_mean, self.affine)
         nii_stdev = nib.Nifti1Image(self.vol_stdev, self.affine)
@@ -115,7 +131,7 @@ class fmriqc(mriqc):
         nib.save(nii_stdev, os.path.join(self.nii_path, 'fmriqc_stdev.nii'))
         nib.save(nii_sfnr, os.path.join(self.nii_path, 'fmriqc_sfnr.nii'))
         
-        return self.sfnr
+        return sfnr
     
     def slice_time_plot(self, save_png=False):
         '''
@@ -127,7 +143,6 @@ class fmriqc(mriqc):
         save_fig:  Boolean.  Save figure as image
         
         '''
-
         slice_time = np.mean(np.mean(self.vol_data, axis=3), axis=2).T
         slice_mean = np.mean(np.mean(np.mean(self.vol_data, axis=3), axis=2),axis=0).T 
         slice_mean = np.tile(slice_mean,[self.shape[0],1]).T
@@ -144,30 +159,29 @@ class fmriqc(mriqc):
         
 
     def create_report(self):
-        html_fname = os.path.join(self.report_path, 'fmriqc_report.html')
         # build the elements needed, in case not run already
-        # sfnr
         self.basic_stats() 
-        self.calc_sfnr(savepng=True)
+        sfnr=self.calc_sfnr(savepng=True)
         # histogram of all image values (4D)
         plot_histogram(self.vol_data,save_png=True, save_path=self.report_path)
         self.slice_time_plot(True)
 
+        html_fname = os.path.join(self.report_path, 'fmriqc_report.html')
         with open(html_fname, 'w') as f:
             f.write('<!doctype=html><title>fMRI QC</title>\n<body>\n<p>fMRI QC Report</p>\n')
         
             f.write('<table><tr><td>Image Dimensions</td><td>' + str(self.shape) + "</td></tr>\n")
-            f.write('<tr><td>SFNR</td><td>' + str(self.sfnr) + "</td></tr>\n")
+            f.write('<tr><td>SFNR</td><td>' + str(sfnr) + "</td></tr>\n")
             f.write('</table>\n')
             pp = os.path.join(self.report_path, 'SFNR.png')
             pp = os.path.join('SFNR.png')
-            f.write('<img src="' + pp + '">\n')
+            f.write('<img src="' + pp + '"><br>\n')
             pp = os.path.join(self.report_path, 'pixel_histogram.png')
             pp = os.path.join('pixel_histogram.png')
-            f.write('<img src="' + pp + '">\n')
+            f.write('<img src="' + pp + '"><br>\n')
             pp = os.path.join(self.report_path, 'slice_time.png')      
             pp = os.path.join('slice_time.png')      
-            f.write('<img src="' + pp + '">\n')
+            f.write('<img src="' + pp + '"><br>\n')
             f.write('</body>\n')
         
 class phantomfmriqc(fmriqc):
@@ -194,12 +208,7 @@ class phantomfmriqc(fmriqc):
         for ii in range(0,3):
             start.append(mid_points[ii]-int(np.floor(box_size[ii])/2))
             end.append(start[ii]+box_size[ii])
-        print(self.shape)  
-        print(mid_points)
-        print(box_size)
-        print(start)  
-        print(end)
-        self.mask = np.zeros(self.shape[1:])
+        self.mask = np.tile(np.nan,self.shape[1:])
         self.mask[start[0]:end[0], start[1]:end[1], start[2]:end[2]]=1
 
 
@@ -215,7 +224,7 @@ def threshold_vol(vol, by_fraction, threshold):
        True = threshold_val is a fraction of max value in image
        False = threshold_val is absolute pixel intensity
     threshold: float/int
-       zero all values below threshold
+       np.nan for all values below threshold
 
     Returns:
         np array with mask of values above threshold
@@ -225,7 +234,7 @@ def threshold_vol(vol, by_fraction, threshold):
     # mask has to be a copy of vol, to prevent the original volume being overwritten by the mask
     mask = np.array(vol)
     pixel_threshold = max_pixel * threshold
-    mask[mask<pixel_threshold] = 0
+    mask[mask<pixel_threshold] = np.nan
     mask[mask>=pixel_threshold] = 1
     return mask
 
@@ -256,10 +265,10 @@ s
 
     # get max, min values from orth slices
     for sl in orth:
-        if np.amax(np.ravel(sl)) > vmax:
-            vmax = np.amax(np.ravel(sl))
-        if np.amin(np.ravel(sl)) < vmin:
-            vmin = np.amin(np.ravel(sl))
+        if np.amax(sl[~np.isnan(sl)]) > vmax:
+            vmax = np.amax(sl[~np.isnan(sl)])
+        if np.amin(sl[~np.isnan(sl)]) < vmin:
+            vmin = np.amin(sl[~np.isnan(sl)])
     
     fig = plt.figure(figsize=(30/2.56, 20/2.56))
     ax = fig.subplots(2,2)
