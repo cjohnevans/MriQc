@@ -13,7 +13,8 @@ else:
 
 fmri = mriqc.phantomfmriqc(nii_path,nii_file,True)
 fmri.voi((10,20,20))
-sfnr_mask = fmri.calc_sfnr(fmri.mask)
+sfnr_mask = fmri.calc_sfnr(fmri.mask, fig=False)
 print('sfnr, masked =' + str(sfnr_mask))
 fmri.create_report()
 
+fmri.mean_signal_timeseries()

@@ -42,23 +42,77 @@ class mriqc:
             self.is_multi_volume = False
             self.n_vols = 1
             
-    def mean_timeseries(self, mask=False):
+    def basic_stats(self):
+        '''
+        mriqc.basic_stats( 
+            )
+        
+        Calculate mean signal, stdev for each voxel and a simple mask
+        '''
+        # calculate volume mean, stdev and sfnr
+        self.vol_mean = np.mean(self.vol_data,0)
+        self.vol_stdev = np.std(self.vol_data,0)
+        self.vol_mask = threshold_vol(self.vol_mean, True, 0.25)    
+    
+        
+    def mean_signal_timeseries(self, define_mask=None):
         '''
         mriqc.mean_timeseries(
-            mask=False
+            define_mask=False
             )
         
         Calculate mean signal across whole volume or masked volume for each 
         timepoint in 4D dataset.
         
+        Parameters:
+        ----------
+            define_mask: supply a mask with 1's for included voxels, NaNs elsewhere
+                         otherwise the volume_mask will be used
+        
         Returns
         -------
-        None.
+        mean_signal_t
 
         '''
         
+        if not np.any(define_mask):
+            # mask at 25% of peak voxel intensity of mean image
+            mask = self.vol_mask 
         
-        self.timeseries=np.mean(np.mean(np.mean(self.vol_data, axis=3), axis=2), axis=1)
+        masked_data = self.vol_data*mask
+        mean_signal_t = np.nanmean(np.nanmean(np.nanmean(masked_data, axis=3), axis=2), axis=1)
+        fig = plt.figure(figsize=(30/2.56, 20/2.56))
+        ax = fig.subplots(1,1)
+        ax.plot(mean_signal_t)
+        ax.set_xlabel('Volume No.')
+        ax.set_ylabel('Mean signal') 
+        return mean_signal_t
+        
+            
+    def slice_time_plot(self, save_png=False):
+         '''
+         mriqc.slice_time_plot(save_png=False)
+
+         Plot mean signal from each slice for all time points (no masking)
+
+         Parameters:
+         save_fig:  Boolean.  Save figure as image
+         
+         '''
+         slice_time = np.mean(np.mean(self.vol_data, axis=3), axis=2).T
+         slice_mean = np.mean(np.mean(np.mean(self.vol_data, axis=3), axis=2),axis=0).T 
+         slice_mean = np.tile(slice_mean,[self.shape[0],1]).T
+         slice_time = slice_time - slice_mean
+
+         fig = plt.figure(figsize=(30/2.5, 20/2.5))
+         ax = fig.subplots()
+         ax.set_title('Mean signal per slice, volume')
+         ax.set_xlabel('Volume No.')
+         ax.set_ylabel('Slice No.')
+         im = ax.imshow(slice_time, cmap='plasma')
+         if save_png:
+             fig.savefig(os.path.join(self.report_path,'slice_time.png'))
+                 
         
         
 # methods specific to fmri
@@ -68,22 +122,11 @@ class fmriqc(mriqc):
     '''
     is_fmri = True
     
-    def basic_stats(self):
-        '''
-        fmriqc.basic_stats( 
-            )
-        
-        Calculate mean signal and stdev for each voxel
-        '''
-        # calculate volume mean, stdev and sfnr
-        self.vol_mean = np.mean(self.vol_data,0)
-        self.vol_stdev = np.std(self.vol_data,0)
-        
-
-    def calc_sfnr(self, mask=None, savepng=False):
+    def calc_sfnr(self, mask=None, fig=True, savepng=False):
         '''
         fmriqc.calc_sfnr(
             mask=False
+            fig=True
             savepng=False
             )
 
@@ -91,7 +134,8 @@ class fmriqc(mriqc):
                     fluctuation noise sfnr (Glover)
 
         Parameters:
-            mask - 3D np array of booleans defining the mask
+            mask - 3D np array of booleans defining the mask, without a supplied
+                   mask, the self.vol_mask will be used (from basic_stats())
             savepng - save ortho_view of SFNR, if required
 
         Returns:
@@ -107,7 +151,7 @@ class fmriqc(mriqc):
         #  threshold of mean volume
         if not np.any(mask):
             # mask at 25% of peak voxel intensity of mean image
-            mask = threshold_vol(self.vol_mean, True, 0.25)
+            mask = self.vol_mask
         # mask is 1 for pixels within mask, NaN for those outside
         self.vol_mean = self.vol_mean * mask
         self.vol_stdev = self.vol_stdev * mask
@@ -116,8 +160,8 @@ class fmriqc(mriqc):
         self.vol_sfnr = np.divide(self.vol_mean, self.vol_stdev, \
                              out=np.zeros_like(self.vol_mean), \
                              where=self.vol_stdev!=0)
-
-        ortho_view(self.vol_sfnr, title='SFNR', save_png=savepng, save_dir=self.report_path)
+        if fig==True:
+            ortho_view(self.vol_sfnr, title='SFNR', save_png=savepng, save_dir=self.report_path)
 
         # discard zero values (as these are probably from the mask)
         sfnr = np.nanmean(np.ravel(self.vol_sfnr))
@@ -129,33 +173,8 @@ class fmriqc(mriqc):
         nii_sfnr = nib.Nifti1Image(self.vol_sfnr, self.affine)
         nib.save(nii_mean, os.path.join(self.nii_path, 'fmriqc_mean.nii'))
         nib.save(nii_stdev, os.path.join(self.nii_path, 'fmriqc_stdev.nii'))
-        nib.save(nii_sfnr, os.path.join(self.nii_path, 'fmriqc_sfnr.nii'))
-        
+        nib.save(nii_sfnr, os.path.join(self.nii_path, 'fmriqc_sfnr.nii'))      
         return sfnr
-    
-    def slice_time_plot(self, save_png=False):
-        '''
-        slice_time_plot(save_png=False)
-
-        Plot mean signal from each slice for all time points
-
-        Parameters:
-        save_fig:  Boolean.  Save figure as image
-        
-        '''
-        slice_time = np.mean(np.mean(self.vol_data, axis=3), axis=2).T
-        slice_mean = np.mean(np.mean(np.mean(self.vol_data, axis=3), axis=2),axis=0).T 
-        slice_mean = np.tile(slice_mean,[self.shape[0],1]).T
-        slice_time = slice_time - slice_mean
-
-        fig = plt.figure(figsize=(30/2.5, 20/2.5))
-        ax = fig.subplots()
-        ax.set_title('Mean signal per slice, volume')
-        ax.set_xlabel('Volume No.')
-        ax.set_ylabel('Slice No.')
-        im = ax.imshow(slice_time, cmap='plasma')
-        if save_png:
-            fig.savefig(os.path.join(self.report_path,'slice_time.png'))
         
 
     def create_report(self):
@@ -303,7 +322,8 @@ def plot_histogram(vol, save_png=False, save_path = '.'):
     hist = np.histogram(vol[vol>0],100)
     bins = hist[1][1:]  # bins includes both ends, take the higher value
     vals = hist[0]
-    fig,ax = plt.subplots(1)
+    fig = plt.figure(figsize=(30/2.56, 20/2.56))
+    ax = fig.subplots()
     ax.plot(bins, vals)
     ax.set_xlabel('Pixel Value')
     ax.set_ylabel('Number of pixels')
