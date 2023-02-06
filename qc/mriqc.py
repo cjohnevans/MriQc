@@ -8,10 +8,10 @@ class mriqc:
     '''
     fmriqc class: data and methods for dealing with fmri quality control data
     '''
-    def __init__(self,path,name, is_invivo):
+    def __init__(self,path,name, in_vivo=True):
         self.in_nii_file = name
         self.nii_path = path
-        self.invivo = False # default to phantom
+        self.in_vivo = in_vivo # default to phantom
         self.sfnr = 0
         # load the data here
         self.nii_load()
@@ -52,12 +52,12 @@ class mriqc:
         # calculate volume mean, stdev and sfnr
         self.vol_mean = np.mean(self.vol_data,0)
         self.vol_stdev = np.std(self.vol_data,0)
-        self.vol_mask = threshold_vol(self.vol_mean, True, 0.25)    
+        self.vol_mask = threshold_vol(self.vol_mean, True, 0.25)           
     
-        
-    def mean_signal_timeseries(self, define_mask=None):
+    def mean_signal_timeseries(self, plot_timeseries=True, define_mask=None):
         '''
         mriqc.mean_timeseries(
+            plot_timeseries=True
             define_mask=False
             )
         
@@ -68,6 +68,7 @@ class mriqc:
         ----------
             define_mask: supply a mask with 1's for included voxels, NaNs elsewhere
                          otherwise the volume_mask will be used
+            plot_timeseries:  generate a plot
         
         Returns
         -------
@@ -77,15 +78,16 @@ class mriqc:
         
         if not np.any(define_mask):
             # mask at 25% of peak voxel intensity of mean image
-            mask = self.vol_mask 
+            define_mask = self.vol_mask 
         
-        masked_data = self.vol_data*mask
+        masked_data = self.vol_data*define_mask
         mean_signal_t = np.nanmean(np.nanmean(np.nanmean(masked_data, axis=3), axis=2), axis=1)
-        fig = plt.figure(figsize=(30/2.56, 20/2.56))
-        ax = fig.subplots(1,1)
-        ax.plot(mean_signal_t)
-        ax.set_xlabel('Volume No.')
-        ax.set_ylabel('Mean signal') 
+        if plot_timeseries:
+            fig = plt.figure(figsize=(30/2.56, 20/2.56))
+            ax = fig.subplots(1,1)
+            ax.plot(mean_signal_t)
+            ax.set_xlabel('Volume No.')
+            ax.set_ylabel('Mean signal') 
         return mean_signal_t
         
             
@@ -113,8 +115,7 @@ class mriqc:
          if save_png:
              fig.savefig(os.path.join(self.report_path,'slice_time.png'))
                  
-        
-        
+
 # methods specific to fmri
 class fmriqc(mriqc):
     '''
@@ -122,6 +123,24 @@ class fmriqc(mriqc):
     '''
     is_fmri = True
     
+    def drift_correct(self):
+        '''
+        fmriqc.drift_correct(
+            
+            )
+
+        Returns
+        -------
+        None.
+
+        '''
+        
+        mean_sig = self.mean_signal_timeseries(plot_timeseries=False)
+        mean_sig = mean_sig[:,np.newaxis, np.newaxis, np.newaxis]
+        mean_sig_vol = np.tile(mean_sig, [1, self.shape[1], self.shape[2], self.shape[3]])
+        drift_corrected = self.vol_data - mean_sig_vol
+        return(drift_corrected)
+        
     def calc_sfnr(self, mask=None, fig=True, savepng=False):
         '''
         fmriqc.calc_sfnr(
@@ -180,17 +199,27 @@ class fmriqc(mriqc):
     def create_report(self):
         # build the elements needed, in case not run already
         self.basic_stats() 
-        sfnr=self.calc_sfnr(savepng=True)
+        sfnr_vol=self.calc_sfnr(savepng=True)
+
         # histogram of all image values (4D)
         plot_histogram(self.vol_data,save_png=True, save_path=self.report_path)
         self.slice_time_plot(True)
+        
+        if self.in_vivo:
+            t_series = self.mean_signal_timeseries(plot_timeseries=False, define_mask=None)
+        else:
+            voi_mask = self.voi((10,20,20))
+            t_series = self.mean_signal_timeseries(plot_timeseries=False, define_mask=voi_mask)
 
         html_fname = os.path.join(self.report_path, 'fmriqc_report.html')
         with open(html_fname, 'w') as f:
-            f.write('<!doctype=html><title>fMRI QC</title>\n<body>\n<p>fMRI QC Report</p>\n')
-        
+            f.write('<!doctype=html><title>fMRI QC</title>\n<body>\n<p>fMRI QC Report</p>\n')     
             f.write('<table><tr><td>Image Dimensions</td><td>' + str(self.shape) + "</td></tr>\n")
-            f.write('<tr><td>SFNR</td><td>' + str(sfnr) + "</td></tr>\n")
+            f.write('<tr><td>SFNR (volume) </td><td>' + "{0:.2f}".format(sfnr_vol) + "</td></tr>\n")
+            if not self.in_vivo:
+                sfnr_voi=self.calc_sfnr(voi_mask, fig=False)           
+                f.write('<tr><td>SFNR (VOI) </td><td>' + "{0:.2f}".format(sfnr_voi) + "</td></tr>\n")
+            f.write('<tr><td>Drift</td><td>' + "{0:.2f}".format(1.2345) + "</td></tr>\n")
             f.write('</table>\n')
             pp = os.path.join(self.report_path, 'SFNR.png')
             pp = os.path.join('SFNR.png')
@@ -202,22 +231,21 @@ class fmriqc(mriqc):
             pp = os.path.join('slice_time.png')      
             f.write('<img src="' + pp + '"><br>\n')
             f.write('</body>\n')
-        
-class phantomfmriqc(fmriqc):
-    '''
-    Methods for analysis of fMRI phantom qc (Glover and other protocols)
-    '''
-    is_phantom_fmri = True
-    
+
     def voi(self, box_size):
         '''
         phantomfmriqc.voi(
             box_size
         )
         
-        Params:
+        Parameters:
+        ----------
             box_size: 3 elemet tuple of dimensions (slices, rows, cols)
-            
+
+        
+        Returns
+        -------
+            mask(nslice,nrows,ncols): 1 for pixels in mask, NaN outside
         '''
         # midpoints of slice, row, columns
         # for even numbers, midpoint will be start of second half of data (zero indexing)
@@ -227,9 +255,10 @@ class phantomfmriqc(fmriqc):
         for ii in range(0,3):
             start.append(mid_points[ii]-int(np.floor(box_size[ii])/2))
             end.append(start[ii]+box_size[ii])
-        self.mask = np.tile(np.nan,self.shape[1:])
-        self.mask[start[0]:end[0], start[1]:end[1], start[2]:end[2]]=1
-
+        mask = np.tile(np.nan,self.shape[1:])
+        mask[start[0]:end[0], start[1]:end[1], start[2]:end[2]]=1
+        return mask
+    
 
 def threshold_vol(vol, by_fraction, threshold):
     '''
