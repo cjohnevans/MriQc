@@ -11,7 +11,7 @@ class mriqc:
     def __init__(self,path,name, in_vivo=True):
         self.in_nii_file = name
         self.nii_path = path
-        self.in_vivo = in_vivo # default to phantom
+        self.in_vivo = False # default to phantom
         self.sfnr = 0
         # load the data here
         self.nii_load()
@@ -54,11 +54,11 @@ class mriqc:
         self.vol_stdev = np.std(self.vol_data,0)
         self.vol_mask = threshold_vol(self.vol_mean, True, 0.25)           
     
-    def mean_signal_timeseries(self, plot_timeseries=True, define_mask=None):
+    def timeseries(self, mask=None, plot=False, savepng=False):
         '''
         mriqc.mean_timeseries(
-            plot_timeseries=True
-            define_mask=False
+            mask=None
+            plot=False
             )
         
         Calculate mean signal across whole volume or masked volume for each 
@@ -66,31 +66,33 @@ class mriqc:
         
         Parameters:
         ----------
-            define_mask: supply a mask with 1's for included voxels, NaNs elsewhere
+            mask: supply a mask with 1's for included voxels, NaNs elsewhere
                          otherwise the volume_mask will be used
-            plot_timeseries:  generate a plot
+            plot:  generate a plot
+            savepng: save plot
         
         Returns
         -------
-        mean_signal_t
+        sig_timeseries
 
         '''
         
-        if not np.any(define_mask):
+        if not np.any(mask):
             # mask at 25% of peak voxel intensity of mean image
-            define_mask = self.vol_mask 
+            mask = self.vol_mask 
         
-        masked_data = self.vol_data*define_mask
-        mean_signal_t = np.nanmean(np.nanmean(np.nanmean(masked_data, axis=3), axis=2), axis=1)
-        if plot_timeseries:
+        masked_data = self.vol_data*mask
+        sig_timeseries = np.nanmean(np.nanmean(np.nanmean(masked_data, axis=3), axis=2), axis=1)
+        if plot:
             fig = plt.figure(figsize=(30/2.56, 20/2.56))
             ax = fig.subplots(1,1)
-            ax.plot(mean_signal_t)
+            ax.plot(sig_timeseries)
             ax.set_xlabel('Volume No.')
             ax.set_ylabel('Mean signal') 
-        return mean_signal_t
-        
-            
+            if savepng:
+                fig.savefig(os.path.join(self.report_path, 'timeseries.png'))
+        return sig_timeseries
+                   
     def slice_time_plot(self, save_png=False):
          '''
          mriqc.slice_time_plot(save_png=False)
@@ -120,26 +122,20 @@ class mriqc:
 class fmriqc(mriqc):
     '''
     methods specific to fmri (inherited from mriqc)
-    '''
-    is_fmri = True
-    
+    '''    
     def drift_correct(self):
         '''
         fmriqc.drift_correct(
-            
             )
-
         Returns
         -------
         None.
-
         '''
-        
-        mean_sig = self.mean_signal_timeseries(plot_timeseries=False)
+        mean_sig = self.timeseries(mask=False, plot=False)
         mean_sig = mean_sig[:,np.newaxis, np.newaxis, np.newaxis]
         mean_sig_vol = np.tile(mean_sig, [1, self.shape[1], self.shape[2], self.shape[3]])
-        drift_corrected = self.vol_data - mean_sig_vol
-        return(drift_corrected)
+        vol_data_dedrift = self.vol_data - mean_sig_vol
+        return(vol_data_dedrift)
         
     def calc_sfnr(self, mask=None, fig=True, savepng=False):
         '''
@@ -148,23 +144,18 @@ class fmriqc(mriqc):
             fig=True
             savepng=False
             )
-
         calculate timeseries mean, standard deviation and signal to
                     fluctuation noise sfnr (Glover)
-
         Parameters:
             mask - 3D np array of booleans defining the mask, without a supplied
                    mask, the self.vol_mask will be used (from basic_stats())
             savepng - save ortho_view of SFNR, if required
-
         Returns:
             sfnr            
-
         Outputs:
         self.vol_mean = mean signal across timeseries
         self.vol_stdev = standard deviation of signal across timepoints
         self.vol_sfnr = signal to fluctuation noise sfnr (Glover)
-        
         '''
         #  if volume sfnr required (i.e. no mask specified), calculate based on 
         #  threshold of mean volume
@@ -195,7 +186,6 @@ class fmriqc(mriqc):
         nib.save(nii_sfnr, os.path.join(self.nii_path, 'fmriqc_sfnr.nii'))      
         return sfnr
         
-
     def create_report(self):
         # build the elements needed, in case not run already
         self.basic_stats() 
@@ -206,10 +196,10 @@ class fmriqc(mriqc):
         self.slice_time_plot(True)
         
         if self.in_vivo:
-            t_series = self.mean_signal_timeseries(plot_timeseries=False, define_mask=None)
+            t_series = self.timeseries(mask=None, plot=False)
         else:
             voi_mask = self.voi((10,20,20))
-            t_series = self.mean_signal_timeseries(plot_timeseries=False, define_mask=voi_mask)
+            t_series = self.timeseries(mask=voi_mask, plot=False)
 
         html_fname = os.path.join(self.report_path, 'fmriqc_report.html')
         with open(html_fname, 'w') as f:
@@ -221,13 +211,10 @@ class fmriqc(mriqc):
                 f.write('<tr><td>SFNR (VOI) </td><td>' + "{0:.2f}".format(sfnr_voi) + "</td></tr>\n")
             f.write('<tr><td>Drift</td><td>' + "{0:.2f}".format(1.2345) + "</td></tr>\n")
             f.write('</table>\n')
-            pp = os.path.join(self.report_path, 'SFNR.png')
             pp = os.path.join('SFNR.png')
             f.write('<img src="' + pp + '"><br>\n')
-            pp = os.path.join(self.report_path, 'pixel_histogram.png')
             pp = os.path.join('pixel_histogram.png')
             f.write('<img src="' + pp + '"><br>\n')
-            pp = os.path.join(self.report_path, 'slice_time.png')      
             pp = os.path.join('slice_time.png')      
             f.write('<img src="' + pp + '"><br>\n')
             f.write('</body>\n')
@@ -257,8 +244,7 @@ class fmriqc(mriqc):
             end.append(start[ii]+box_size[ii])
         mask = np.tile(np.nan,self.shape[1:])
         mask[start[0]:end[0], start[1]:end[1], start[2]:end[2]]=1
-        return mask
-    
+        return mask   
 
 def threshold_vol(vol, by_fraction, threshold):
     '''
@@ -288,13 +274,15 @@ def threshold_vol(vol, by_fraction, threshold):
 
 def ortho_view(vol, title='image', save_png=False, save_dir='.'):
     '''
-    mriqc.ortho_view(vol, title='image', savepng=False, )
-s
+    mriqc.ortho_view(
+        vol, 
+        title='image', 
+        savepng=False, 
+        )
     Params:
     vol: 3D numpy array to display.  Can't be multi_volume
     title: plot title
     save_png: save output as png
-    
     Show middle slice in three orthogonal views
     '''
 

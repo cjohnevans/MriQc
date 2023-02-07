@@ -17,8 +17,7 @@ if os.name == 'nt':
     nii_file = 'alspacfmri.nii'
 else:
     nii_path = '/home/sapje1/scratch_sapje1/fmriqc/251_alspac/'
-    nii_file = 'alspacfmri.nii'
-    
+    nii_file = 'alspacfmri.nii'    
     
 fmri = mriqc.fmriqc(nii_path,nii_file,in_vivo=True)
 

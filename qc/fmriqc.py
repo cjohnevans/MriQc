@@ -16,7 +16,7 @@ fmri = mriqc.fmriqc(nii_path,nii_file,in_vivo=False)
 
 fmri.create_report()
 
-t_series = fmri.mean_signal_timeseries()
+t_series = fmri.timeseries(plot=True)
 vol_no = np.arange(0,len(t_series))
 t_series2 = t_series + 0.1*vol_no
 
