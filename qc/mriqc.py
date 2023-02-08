@@ -137,12 +137,13 @@ class fmriqc(mriqc):
         vol_data_dedrift = self.vol_data - mean_sig_vol
         return(vol_data_dedrift)
         
-    def calc_sfnr(self, mask=None, fig=True, savepng=False):
+    def calc_sfnr(self, mask=None, plot=True, savepng=False, savenii=False):
         '''
         fmriqc.calc_sfnr(
             mask=False
-            fig=True
+            plot=True
             savepng=False
+            savenii=False
             )
         calculate timeseries mean, standard deviation and signal to
                     fluctuation noise sfnr (Glover)
@@ -151,7 +152,7 @@ class fmriqc(mriqc):
                    mask, the self.vol_mask will be used (from basic_stats())
             savepng - save ortho_view of SFNR, if required
         Returns:
-            sfnr            
+            sfnr - SFNR from masked voi (or thresholded volume)        
         Outputs:
         self.vol_mean = mean signal across timeseries
         self.vol_stdev = standard deviation of signal across timepoints
@@ -170,20 +171,21 @@ class fmriqc(mriqc):
         self.vol_sfnr = np.divide(self.vol_mean, self.vol_stdev, \
                              out=np.zeros_like(self.vol_mean), \
                              where=self.vol_stdev!=0)
-        if fig==True:
+        if plot==True:
             ortho_view(self.vol_sfnr, title='SFNR', save_png=savepng, save_dir=self.report_path)
 
         # discard zero values (as these are probably from the mask)
         sfnr = np.nanmean(np.ravel(self.vol_sfnr))
         print(sfnr)
         
-        # create nifti, using same affine transform as original
-        nii_mean = nib.Nifti1Image(self.vol_mean, self.affine)
-        nii_stdev = nib.Nifti1Image(self.vol_stdev, self.affine)
-        nii_sfnr = nib.Nifti1Image(self.vol_sfnr, self.affine)
-        nib.save(nii_mean, os.path.join(self.nii_path, 'fmriqc_mean.nii'))
-        nib.save(nii_stdev, os.path.join(self.nii_path, 'fmriqc_stdev.nii'))
-        nib.save(nii_sfnr, os.path.join(self.nii_path, 'fmriqc_sfnr.nii'))      
+        if savenii:
+            # create nifti, using same affine transform as original
+            nii_mean = nib.Nifti1Image(self.vol_mean, self.affine)
+            nii_stdev = nib.Nifti1Image(self.vol_stdev, self.affine)
+            nii_sfnr = nib.Nifti1Image(self.vol_sfnr, self.affine)
+            nib.save(nii_mean, os.path.join(self.nii_path, 'fmriqc_mean.nii'))
+            nib.save(nii_stdev, os.path.join(self.nii_path, 'fmriqc_stdev.nii'))
+            nib.save(nii_sfnr, os.path.join(self.nii_path, 'fmriqc_sfnr.nii'))      
         return sfnr
         
     def create_report(self):
@@ -207,7 +209,7 @@ class fmriqc(mriqc):
             f.write('<table><tr><td>Image Dimensions</td><td>' + str(self.shape) + "</td></tr>\n")
             f.write('<tr><td>SFNR (volume) </td><td>' + "{0:.2f}".format(sfnr_vol) + "</td></tr>\n")
             if not self.in_vivo:
-                sfnr_voi=self.calc_sfnr(voi_mask, fig=False)           
+                sfnr_voi=self.calc_sfnr(voi_mask, plot=False)           
                 f.write('<tr><td>SFNR (VOI) </td><td>' + "{0:.2f}".format(sfnr_voi) + "</td></tr>\n")
             f.write('<tr><td>Drift</td><td>' + "{0:.2f}".format(1.2345) + "</td></tr>\n")
             f.write('</table>\n')
