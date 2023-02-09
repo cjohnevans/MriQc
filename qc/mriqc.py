@@ -3,10 +3,10 @@ import numpy as np
 import os
 import matplotlib.pyplot as plt
 
-# mriqc is generic for checking multi-volume MR data (e.g. fmri, qmt)
-class mriqc:
+# MultiVolQc is generic for checking multi-volume MR data (e.g. fmri, qmt)
+class MultiVolQc:
     '''
-    fmriqc class: data and methods for dealing with fmri quality control data
+    MultiVolQc class: data and methods for dealing with multi-volume MRI data
     '''
     def __init__(self,path,name, in_vivo=True):
         self.in_nii_file = name
@@ -22,7 +22,7 @@ class mriqc:
 
     def nii_load(self):
         '''
-        mriqc.nii_load()
+        MultiVolQc.nii_load()
 
         Load nifti file using nibabel load.
         Populate nii_img (nibabel) and vol_data (numpy array)
@@ -42,9 +42,10 @@ class mriqc:
             self.is_multi_volume = False
             self.n_vols = 1
             
-    def basic_stats(self):
+    def basic_stats(self, savenii=False):
         '''
-        mriqc.basic_stats( 
+        MultiVolQc.basic_stats( 
+            savenii=False
             )
         
         Calculate mean signal, stdev for each voxel and a simple mask
@@ -52,11 +53,19 @@ class mriqc:
         # calculate volume mean, stdev and sfnr
         self.vol_mean = np.mean(self.vol_data,0)
         self.vol_stdev = np.std(self.vol_data,0)
-        self.vol_mask = threshold_vol(self.vol_mean, True, 0.25)           
+        self.vol_mask = threshold_vol(self.vol_mean, True, 0.25)  
+        if savenii:
+            # create nifti, using same affine transform as original
+            nii_mean = nib.Nifti1Image(self.vol_mean, self.affine)
+            nii_stdev = nib.Nifti1Image(self.vol_stdev, self.affine)
+            nii_mask = nib.Nifti1Image(self.vol_mask, self.affine)
+            nib.save(nii_mean, os.path.join(self.nii_path, 'fmriqc_mean.nii'))
+            nib.save(nii_stdev, os.path.join(self.nii_path, 'fmriqc_stdev.nii'))
+            nib.save(nii_mask, os.path.join(self.nii_path, 'fmriqc_mask.nii'))
     
     def timeseries(self, mask=None, plot=False, savepng=False):
         '''
-        mriqc.mean_timeseries(
+        MultiVolQc.mean_timeseries(
             mask=None
             plot=False
             )
@@ -95,7 +104,7 @@ class mriqc:
                    
     def slice_time_plot(self, save_png=False):
          '''
-         mriqc.slice_time_plot(save_png=False)
+         MultiVolQc.slice_time_plot(save_png=False)
 
          Plot mean signal from each slice for all time points (no masking)
 
@@ -119,13 +128,13 @@ class mriqc:
                  
 
 # methods specific to fmri
-class fmriqc(mriqc):
+class FmriQc(MultiVolQc):
     '''
     methods specific to fmri (inherited from mriqc)
     '''    
     def drift_correct(self):
         '''
-        fmriqc.drift_correct(
+        FmriQc.drift_correct(
             )
         Returns
         -------
@@ -139,7 +148,7 @@ class fmriqc(mriqc):
         
     def calc_sfnr(self, mask=None, plot=True, savepng=False, savenii=False):
         '''
-        fmriqc.calc_sfnr(
+        FmriQc.calc_sfnr(
             mask=False
             plot=True
             savepng=False
@@ -176,15 +185,10 @@ class fmriqc(mriqc):
 
         # discard zero values (as these are probably from the mask)
         sfnr = np.nanmean(np.ravel(self.vol_sfnr))
-        print(sfnr)
-        
+        print(sfnr)        
         if savenii:
             # create nifti, using same affine transform as original
-            nii_mean = nib.Nifti1Image(self.vol_mean, self.affine)
-            nii_stdev = nib.Nifti1Image(self.vol_stdev, self.affine)
             nii_sfnr = nib.Nifti1Image(self.vol_sfnr, self.affine)
-            nib.save(nii_mean, os.path.join(self.nii_path, 'fmriqc_mean.nii'))
-            nib.save(nii_stdev, os.path.join(self.nii_path, 'fmriqc_stdev.nii'))
             nib.save(nii_sfnr, os.path.join(self.nii_path, 'fmriqc_sfnr.nii'))      
         return sfnr
         
@@ -223,7 +227,7 @@ class fmriqc(mriqc):
 
     def voi(self, box_size):
         '''
-        phantomfmriqc.voi(
+        FmriQc.voi(
             box_size
         )
         
@@ -250,7 +254,7 @@ class fmriqc(mriqc):
 
 def threshold_vol(vol, by_fraction, threshold):
     '''
-    fmriqc.threshold_vol(
+    mriqc.threshold_vol(
        by_fraction
        threshold
     )
