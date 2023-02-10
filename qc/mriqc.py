@@ -146,7 +146,7 @@ class FmriQc(MultiVolQc):
         vol_data_dedrift = self.vol_data - mean_sig_vol
         return(vol_data_dedrift)
         
-    def calc_sfnr(self, mask=None, plot=True, savepng=False, savenii=False):
+    def calc_sfnr(self, mask=None, plot=False, savepng=False, savenii=False):
         '''
         FmriQc.calc_sfnr(
             mask=False
@@ -167,6 +167,7 @@ class FmriQc(MultiVolQc):
         self.vol_stdev = standard deviation of signal across timepoints
         self.vol_sfnr = signal to fluctuation noise sfnr (Glover)
         '''
+        self.basic_stats()
         #  if volume sfnr required (i.e. no mask specified), calculate based on 
         #  threshold of mean volume
         if not np.any(mask):
@@ -195,7 +196,7 @@ class FmriQc(MultiVolQc):
     def create_report(self):
         # build the elements needed, in case not run already
         self.basic_stats() 
-        sfnr_vol=self.calc_sfnr(savepng=True)
+        sfnr_vol=self.calc_sfnr(plot=True, savepng=True)
 
         # histogram of all image values (4D)
         plot_histogram(self.vol_data,save_png=True, save_path=self.report_path)
