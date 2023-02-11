@@ -65,9 +65,10 @@ class MultiVolQc:
     
     def timeseries(self, mask=None, plot=False, savepng=False):
         '''
-        MultiVolQc.mean_timeseries(
+        MultiVolQc.timeseries(
             mask=None
             plot=False
+            savepng=False
             )
         
         Calculate mean signal across whole volume or masked volume for each 
@@ -132,19 +133,40 @@ class FmriQc(MultiVolQc):
     '''
     methods specific to fmri (inherited from mriqc)
     '''    
-    def drift_correct(self):
+    def drift_correct(self, correct=False, plot=False):
         '''
         FmriQc.drift_correct(
+            correct=False
+            plot=False
             )
+        Parameters
+        ----------
+        correct: apply correction (True/False).  If true, this updates fmriqc.vol_data
+                 to the drift corrected value, otherwise just returns the drift and optionally
+                 plots output
         Returns
         -------
+        drift: the peak-to-peak variation in the fit (as % of mean)
         None.
         '''
-        mean_sig = self.timeseries(mask=False, plot=False)
-        mean_sig = mean_sig[:,np.newaxis, np.newaxis, np.newaxis]
-        mean_sig_vol = np.tile(mean_sig, [1, self.shape[1], self.shape[2], self.shape[3]])
-        vol_data_dedrift = self.vol_data - mean_sig_vol
-        return(vol_data_dedrift)
+        st = self.timeseries()
+        vol_no = np.arange(0, len(st))
+        p = np.polyfit(vol_no, st, 2)
+        fitplot = p[0]*vol_no**2 + p[1]*vol_no + p[2]
+        resid=st-fitplot
+        if plot:
+            fig=plt.figure()
+            ax1,ax2=fig.subplots(2,1)
+            ax1.plot(vol_no, st, vol_no, fitplot)
+            ax2.plot(vol_no, resid)
+
+        drift = 100 * (np.amax(fitplot)-np.amin(fitplot)) /  np.mean(st)
+        
+        if correct:
+            self.vol_data = self.vol_data - np.tile(fitplot[:,np.newaxis,np.newaxis,np.newaxis],
+                        [self.shape[1], self.shape[2], self.shape[3]] )
+            
+        return(drift)
         
     def calc_sfnr(self, mask=None, plot=False, savepng=False, savenii=False):
         '''
