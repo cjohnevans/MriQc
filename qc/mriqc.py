@@ -153,6 +153,8 @@ class FmriQc(MultiVolQc):
         vol_no = np.arange(0, len(st))
         p = np.polyfit(vol_no, st, 2)
         fitplot = p[0]*vol_no**2 + p[1]*vol_no + p[2]
+        # correct linear and 2nd order term, but don't demean data (zeroth)
+        corplot = p[0]*vol_no**2 + p[1]*vol_no
         resid=st-fitplot
         if plot:
             fig=plt.figure()
@@ -163,9 +165,14 @@ class FmriQc(MultiVolQc):
         drift = 100 * (np.amax(fitplot)-np.amin(fitplot)) /  np.mean(st)
         
         if correct:
-            self.vol_data = self.vol_data - np.tile(fitplot[:,np.newaxis,np.newaxis,np.newaxis],
+            #cor = - np.tile(corplot[:,np.newaxis,np.newaxis,np.newaxis],
+            #            [self.shape[1], self.shape[2], self.shape[3]] )
+            #plt.plot(cor[:,18,32,32])
+            #plt.set_title('cor')
+            self.vol_data = self.vol_data - np.tile(corplot[:,np.newaxis,np.newaxis,np.newaxis],
                         [self.shape[1], self.shape[2], self.shape[3]] )
-            
+            # if vol_data has been adjusted, need to recalculate mean, stdev
+            self.basic_stats()            
         return(drift)
         
     def calc_sfnr(self, mask=None, plot=False, savepng=False, savenii=False):
@@ -208,12 +215,14 @@ class FmriQc(MultiVolQc):
 
         # discard zero values (as these are probably from the mask)
         sfnr = np.nanmean(np.ravel(self.vol_sfnr))
-        print(sfnr)        
+        vmean = np.nanmean(np.ravel(self.vol_mean))
+        vstd = np.nanmean(np.ravel(self.vol_stdev))
+        print(sfnr,vmean,vstd)        
         if savenii:
             # create nifti, using same affine transform as original
             nii_sfnr = nib.Nifti1Image(self.vol_sfnr, self.affine)
             nib.save(nii_sfnr, os.path.join(self.nii_path, 'fmriqc_sfnr.nii'))      
-        return sfnr
+        return (sfnr, vmean, vstd)
         
     def create_report(self):
         # build the elements needed, in case not run already
