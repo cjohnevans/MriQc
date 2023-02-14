@@ -8,9 +8,9 @@ class MultiVolQc:
     '''
     MultiVolQc class: data and methods for dealing with multi-volume MRI data
     '''
-    def __init__(self,path,name, in_vivo=True):
-        self.in_nii_file = name
-        self.nii_path = path
+    def __init__(self,filename, in_vivo=True, run_report=True):
+        self.in_nii_file = os.path.basename(filename)
+        self.nii_path = os.path.dirname(filename)
         self.in_vivo = False # default to phantom
         self.sfnr = 0
         # load the data here
@@ -19,6 +19,8 @@ class MultiVolQc:
         self.report_path = os.path.join(self.nii_path, 'report')
         if not os.path.exists(self.report_path):
             os.mkdir(self.report_path)
+        if run_report:
+            self.create_report()
 
     def nii_load(self):
         '''
@@ -257,7 +259,7 @@ class FmriQc(MultiVolQc):
             if not self.in_vivo:
                 sfnr_voi,mn,sd = self.calc_sfnr(voi_mask, plot=False)           
                 f.write('<tr><td>SFNR (VOI) </td><td>' + "{0:.2f}".format(sfnr_voi) + "</td></tr>\n")
-            f.write('<tr><td>Drift (%)</td><td>' + "{0:.2f}".format(1.2345) + "</td></tr>\n")
+            f.write('<tr><td>Drift (%)</td><td>' + "{0:.2f}".format(drift) + "</td></tr>\n")
             f.write('</table>\n')
             pp = os.path.join('SFNR.png')
             f.write('<img src="' + pp + '"><br>\n')
