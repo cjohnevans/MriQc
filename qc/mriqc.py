@@ -133,7 +133,7 @@ class FmriQc(MultiVolQc):
     '''
     methods specific to fmri (inherited from mriqc)
     '''    
-    def drift_correct(self, correct=False, plot=False):
+    def drift_correct(self, correct=False, mask=False, plot=False):
         '''
         FmriQc.drift_correct(
             correct=False
@@ -149,7 +149,7 @@ class FmriQc(MultiVolQc):
         drift: the peak-to-peak variation in the fit (as % of mean)
         None.
         '''
-        st = self.timeseries()
+        st = self.timeseries(mask=mask)
         vol_no = np.arange(0, len(st))
         p = np.polyfit(vol_no, st, 2)
         fitplot = p[0]*vol_no**2 + p[1]*vol_no + p[2]
