@@ -133,11 +133,12 @@ class FmriQc(MultiVolQc):
     '''
     methods specific to fmri (inherited from mriqc)
     '''    
-    def drift_correct(self, correct=False, mask=False, plot=False):
+    def drift_correct(self, correct=False, mask=False, plot=False, savepng=False):
         '''
         FmriQc.drift_correct(
             correct=False
             plot=False
+            savepng=False
             )
         Parameters
         ----------
@@ -157,11 +158,17 @@ class FmriQc(MultiVolQc):
         corplot = p[0]*vol_no**2 + p[1]*vol_no
         resid=st-fitplot
         if plot:
-            fig=plt.figure()
+            fig = plt.figure(figsize=(30/2.5, 20/2.5))
             ax1,ax2=fig.subplots(2,1)
             ax1.plot(vol_no, st, vol_no, fitplot)
+            ax1.set_title('Pre drift correction, with fit')
             ax2.plot(vol_no, resid)
+            ax2.set_title('Post drift correction')
+            ax2.set_xlabel('Volume No.')
 
+            if savepng:
+                fig.savefig(os.path.join(self.report_path, 'drift_correct.png'))
+                    
         drift = 100 * (np.amax(fitplot)-np.amin(fitplot)) /  np.mean(st)
         
         if correct:
@@ -172,7 +179,8 @@ class FmriQc(MultiVolQc):
             self.vol_data = self.vol_data - np.tile(corplot[:,np.newaxis,np.newaxis,np.newaxis],
                         [self.shape[1], self.shape[2], self.shape[3]] )
             # if vol_data has been adjusted, need to recalculate mean, stdev
-            self.basic_stats()            
+            self.basic_stats()   
+    
         return(drift)
         
     def calc_sfnr(self, mask=None, plot=False, savepng=False, savenii=False):
@@ -226,18 +234,20 @@ class FmriQc(MultiVolQc):
         
     def create_report(self):
         # build the elements needed, in case not run already
-        self.basic_stats() 
-        sfnr_vol=self.calc_sfnr(plot=True, savepng=True)
+        self.basic_stats()
+        sfnr_vol,mn,sd = self.calc_sfnr(plot=True, savepng=True)
 
         # histogram of all image values (4D)
         plot_histogram(self.vol_data,save_png=True, save_path=self.report_path)
         self.slice_time_plot(True)
         
         if self.in_vivo:
-            t_series = self.timeseries(mask=None, plot=False)
+            drift = self.drift_correct(correct=True,mask=False, plot=True, savepng=True)
+            t_series = self.timeseries(mask=None, plot=True, savepng=True)
         else:
             voi_mask = self.voi((10,20,20))
-            t_series = self.timeseries(mask=voi_mask, plot=False)
+            drift = self.drift_correct(correct=True,mask=voi_mask, plot=True, savepng=True)
+            t_series = self.timeseries(mask=voi_mask, plot=True, savepng=True)
 
         html_fname = os.path.join(self.report_path, 'fmriqc_report.html')
         with open(html_fname, 'w') as f:
@@ -245,13 +255,15 @@ class FmriQc(MultiVolQc):
             f.write('<table><tr><td>Image Dimensions</td><td>' + str(self.shape) + "</td></tr>\n")
             f.write('<tr><td>SFNR (volume) </td><td>' + "{0:.2f}".format(sfnr_vol) + "</td></tr>\n")
             if not self.in_vivo:
-                sfnr_voi=self.calc_sfnr(voi_mask, plot=False)           
+                sfnr_voi,mn,sd = self.calc_sfnr(voi_mask, plot=False)           
                 f.write('<tr><td>SFNR (VOI) </td><td>' + "{0:.2f}".format(sfnr_voi) + "</td></tr>\n")
-            f.write('<tr><td>Drift</td><td>' + "{0:.2f}".format(1.2345) + "</td></tr>\n")
+            f.write('<tr><td>Drift (%)</td><td>' + "{0:.2f}".format(1.2345) + "</td></tr>\n")
             f.write('</table>\n')
             pp = os.path.join('SFNR.png')
             f.write('<img src="' + pp + '"><br>\n')
             pp = os.path.join('pixel_histogram.png')
+            f.write('<img src="' + pp + '"><br>\n')
+            pp = os.path.join('drift_correct.png')      
             f.write('<img src="' + pp + '"><br>\n')
             pp = os.path.join('slice_time.png')      
             f.write('<img src="' + pp + '"><br>\n')

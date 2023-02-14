@@ -14,10 +14,10 @@ else:
     nii_file = 'alspacfmri.nii'
 
 fmri = mriqc.FmriQc(nii_path,nii_file,in_vivo=False)
-fmri.timeseries(plot=True)
-fmri.drift_correct(correct=True,plot=True)
-fmri.timeseries(plot=True)
+#fmri.timeseries(plot=True)
+#mri.drift_correct(correct=True,plot=True)
+#fmri.timeseries(plot=True)
 
-mriqc.ortho_view(fmri.vol_mean)
-#fmri.create_report()
+#mriqc.ortho_view(fmri.vol_mean)
+fmri.create_report()
 
