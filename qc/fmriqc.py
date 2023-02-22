@@ -10,6 +10,7 @@ if os.name == 'nt':
     nii_file = '20211111_113225GloverGSQAPs003a001.nii'
     nii_file = 'alspacfmri.nii'
     nii_file = '20211111_113225WarmingUps002a001.nii'
+    nii_file = 'WarmingUp_7T.nii.gz'
 else:
     nii_path = '/home/sapje1/scratch_sapje1/fmriqc/251_alspac/'
     nii_file = 'alspacfmri.nii'
