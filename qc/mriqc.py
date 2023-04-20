@@ -59,7 +59,8 @@ class MultiVolQc:
         # calculate volume mean, stdev and sfnr
         self.vol_mean = np.mean(self.vol_data,0, dtype=np.float64)
         self.vol_stdev = np.std(self.vol_data,0, dtype=np.float64)
-        self.vol_mask = threshold_vol(self.vol_mean, True, 0.25)  
+        # 25% mask too high for 7T.  Reduce to 10%
+        self.vol_mask = threshold_vol(self.vol_mean, True, 0.1)  
         if savenii:
             # create nifti, using same affine transform as original
             nii_mean = nib.Nifti1Image(self.vol_mean, self.affine)
@@ -216,7 +217,7 @@ class FmriQc(MultiVolQc):
         #  if volume sfnr required (i.e. no mask specified), calculate based on 
         #  threshold of mean volume
         if not np.any(mask):
-            # mask at 25% of peak voxel intensity of mean image
+            # mask at percentage of peak voxel intensity of mean image (from basic_stats)
             mask = self.vol_mask
         # mask is 1 for pixels within mask, NaN for those outside
         self.vol_mean = self.vol_mean * mask
