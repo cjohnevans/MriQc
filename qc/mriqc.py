@@ -10,13 +10,14 @@ class MultiVolQc:
     '''
     def __init__(self,filename, in_vivo=True, run_report=True):
         self.in_nii_file = os.path.basename(filename)
+        nii_file_noext = self.in_nii_file.split('.')[0]
         self.nii_path = os.path.dirname(filename)
         self.in_vivo = False # default to phantom
         self.sfnr = 0
         # load the data here
         self.nii_load()
         self.basic_stats()
-        self.report_path = os.path.join(self.nii_path, 'report')
+        self.report_path = os.path.join(self.nii_path, nii_file_noext+'_report')
         if not os.path.exists(self.report_path):
             os.mkdir(self.report_path)
         if run_report:
@@ -32,7 +33,10 @@ class MultiVolQc:
         '''        
         self.nii_img = nib.load(os.path.join(self.nii_path, self.in_nii_file))
         # this will load as a proxy image
-        self.vol_data = self.nii_img.get_fdata()
+        # need to be careful with the datatypes better to load as float16 as this 
+        # matches the dicom data and reduces memory usage, but some numpy functions
+        # require float64
+        self.vol_data = self.nii_img.get_fdata(dtype=np.float16)
         # reverse order of axes, so that we have [vol, slice, phase, read]
         self.vol_data = np.transpose(self.vol_data)
         self.shape = self.vol_data.shape
@@ -53,8 +57,8 @@ class MultiVolQc:
         Calculate mean signal, stdev for each voxel and a simple mask
         '''
         # calculate volume mean, stdev and sfnr
-        self.vol_mean = np.mean(self.vol_data,0)
-        self.vol_stdev = np.std(self.vol_data,0)
+        self.vol_mean = np.mean(self.vol_data,0, dtype=np.float64)
+        self.vol_stdev = np.std(self.vol_data,0, dtype=np.float64)
         self.vol_mask = threshold_vol(self.vol_mean, True, 0.25)  
         if savenii:
             # create nifti, using same affine transform as original
@@ -92,9 +96,12 @@ class MultiVolQc:
         if not np.any(mask):
             # mask at 25% of peak voxel intensity of mean image
             mask = self.vol_mask 
-        
-        masked_data = self.vol_data*mask
-        sig_timeseries = np.nanmean(np.nanmean(np.nanmean(masked_data, axis=3), axis=2), axis=1)
+        # keep volume data as float16 to hep=lp with memory problems
+        masked_data = np.array(self.vol_data*mask, dtype=np.float16)
+        # but polyfit needs float64 (but data smaller now)
+        # and np.mean needs float64 too
+        sig_timeseries = np.array( \
+                np.nanmean(np.nanmean(np.nanmean(masked_data, axis=3, dtype=np.float64), axis=2, dtype=np.float64), axis=1, dtype=np.float64))
         if plot:
             fig = plt.figure(figsize=(30/2.56, 20/2.56))
             ax = fig.subplots(1,1)
@@ -157,7 +164,7 @@ class FmriQc(MultiVolQc):
         p = np.polyfit(vol_no, st, 2)
         fitplot = p[0]*vol_no**2 + p[1]*vol_no + p[2]
         # correct linear and 2nd order term, but don't demean data (zeroth)
-        corplot = p[0]*vol_no**2 + p[1]*vol_no
+        corplot = np.array(p[0]*vol_no**2 + p[1]*vol_no, dtype=np.float16)
         resid=st-fitplot
         if plot:
             fig = plt.figure(figsize=(30/2.5, 20/2.5))
@@ -178,8 +185,8 @@ class FmriQc(MultiVolQc):
             #            [self.shape[1], self.shape[2], self.shape[3]] )
             #plt.plot(cor[:,18,32,32])
             #plt.set_title('cor')
-            self.vol_data = self.vol_data - np.tile(corplot[:,np.newaxis,np.newaxis,np.newaxis],
-                        [self.shape[1], self.shape[2], self.shape[3]] )
+            self.vol_data = self.vol_data - np.array(np.tile(corplot[:,np.newaxis,np.newaxis,np.newaxis], \
+                        [self.shape[1], self.shape[2], self.shape[3]]), dtype=np.float16 )
             # if vol_data has been adjusted, need to recalculate mean, stdev
             self.basic_stats()   
     
@@ -206,7 +213,6 @@ class FmriQc(MultiVolQc):
         self.vol_stdev = standard deviation of signal across timepoints
         self.vol_sfnr = signal to fluctuation noise sfnr (Glover)
         '''
-        self.basic_stats()
         #  if volume sfnr required (i.e. no mask specified), calculate based on 
         #  threshold of mean volume
         if not np.any(mask):
@@ -215,6 +221,8 @@ class FmriQc(MultiVolQc):
         # mask is 1 for pixels within mask, NaN for those outside
         self.vol_mean = self.vol_mean * mask
         self.vol_stdev = self.vol_stdev * mask
+        tmp_vol_mean = self.vol_mean
+        tmp_vol_stdev = self.vol_stdev
 
         # deal with inf.  
         self.vol_sfnr = np.divide(self.vol_mean, self.vol_stdev, \
@@ -230,7 +238,7 @@ class FmriQc(MultiVolQc):
         print(sfnr,vmean,vstd)        
         if savenii:
             # create nifti, using same affine transform as original
-            nii_sfnr = nib.Nifti1Image(self.vol_sfnr, self.affine)
+            nii_sfnr = nib.Nifti1Image(np.array(self.vol_sfnr, dtype=np.float64), self.affine)
             nib.save(nii_sfnr, os.path.join(self.nii_path, 'fmriqc_sfnr.nii'))      
         return (sfnr, vmean, vstd)
         
@@ -247,7 +255,7 @@ class FmriQc(MultiVolQc):
             drift = self.drift_correct(correct=True,mask=False, plot=True, savepng=True)
             t_series = self.timeseries(mask=None, plot=True, savepng=True)
         else:
-            voi_mask = self.voi((10,20,20))
+            voi_mask = np.array(self.voi((10,20,20)), dtype=np.float16)
             drift = self.drift_correct(correct=True,mask=voi_mask, plot=True, savepng=True)
             t_series = self.timeseries(mask=voi_mask, plot=True, savepng=True)
 
@@ -257,7 +265,7 @@ class FmriQc(MultiVolQc):
             f.write('<table><tr><td>Image Dimensions</td><td>' + str(self.shape) + "</td></tr>\n")
             f.write('<tr><td>SFNR (volume) </td><td>' + "{0:.2f}".format(sfnr_vol) + "</td></tr>\n")
             if not self.in_vivo:
-                sfnr_voi,mn,sd = self.calc_sfnr(voi_mask, plot=False)           
+                sfnr_voi,mn,sd = self.calc_sfnr(voi_mask, plot=False, savenii=True)           
                 f.write('<tr><td>SFNR (VOI) </td><td>' + "{0:.2f}".format(sfnr_voi) + "</td></tr>\n")
             f.write('<tr><td>Drift (%)</td><td>' + "{0:.2f}".format(drift) + "</td></tr>\n")
             f.write('</table>\n')
