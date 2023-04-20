@@ -244,8 +244,8 @@ class FmriQc(MultiVolQc):
         
     def create_report(self):
         # build the elements needed, in case not run already
-        self.basic_stats()
-        sfnr_vol,mn,sd = self.calc_sfnr(plot=True, savepng=True)
+        #self.basic_stats()
+        sfnr_vol,mean_vol,sd_vol = self.calc_sfnr(plot=True, savepng=True)
 
         # histogram of all image values (4D)
         plot_histogram(self.vol_data,save_png=True, save_path=self.report_path)
@@ -259,14 +259,25 @@ class FmriQc(MultiVolQc):
             drift = self.drift_correct(correct=True,mask=voi_mask, plot=True, savepng=True)
             t_series = self.timeseries(mask=voi_mask, plot=True, savepng=True)
 
-        html_fname = os.path.join(self.report_path, 'fmriqc_report.html')
+        if not self.in_vivo:
+            # running calc_sfnr with mask overwrites values in self
+            sfnr_voi,mean_voi,sd_voi = self.calc_sfnr(voi_mask, plot=False, savenii=False)           
+        else:
+            sfnr_voi = 0
+            mean_voi = 0
+            sd_voi = 0  
+
+        base_fname = self.in_nii_file.split('.')[0] # base filename from nii file
+        html_fname = os.path.join(self.report_path, 'fmriqc_'+base_fname+'.html')
         with open(html_fname, 'w') as f:
             f.write('<!doctype=html><title>fMRI QC</title>\n<body>\n<p>fMRI QC Report</p>\n')     
             f.write('<table><tr><td>Image Dimensions</td><td>' + str(self.shape) + "</td></tr>\n")
             f.write('<tr><td>SFNR (volume) </td><td>' + "{0:.2f}".format(sfnr_vol) + "</td></tr>\n")
-            if not self.in_vivo:
-                sfnr_voi,mn,sd = self.calc_sfnr(voi_mask, plot=False, savenii=True)           
-                f.write('<tr><td>SFNR (VOI) </td><td>' + "{0:.2f}".format(sfnr_voi) + "</td></tr>\n")
+            f.write('<tr><td>Mean (volume) </td><td>' + "{0:.2f}".format(mean_vol) + "</td></tr>\n")
+            f.write('<tr><td>stdev(volume) </td><td>' + "{0:.2f}".format(sd_vol) + "</td></tr>\n")
+            f.write('<tr><td>SFNR (VOI) </td><td>' + "{0:.2f}".format(sfnr_voi) + "</td></tr>\n")
+            f.write('<tr><td>Mean (VOI) </td><td>' + "{0:.2f}".format(mean_voi) + "</td></tr>\n")
+            f.write('<tr><td>stdev(VOI) </td><td>' + "{0:.2f}".format(sd_voi) + "</td></tr>\n")
             f.write('<tr><td>Drift (%)</td><td>' + "{0:.2f}".format(drift) + "</td></tr>\n")
             f.write('</table>\n')
             pp = os.path.join('SFNR.png')
@@ -278,6 +289,18 @@ class FmriQc(MultiVolQc):
             pp = os.path.join('slice_time.png')      
             f.write('<img src="' + pp + '"><br>\n')
             f.write('</body>\n')
+            
+        txt_fname = os.path.join(self.report_path, 'fmriqc_'+base_fname+'.dat')
+        with open(txt_fname, 'w') as ff:
+            ff.write('File,sfnr_vol,mean_vol,sd_vol,sfnr_voi,mean_voi,sd_voi,drift\n')
+            ff.write( base_fname \
+                     +",{0:.2f}".format(sfnr_vol)\
+                     +",{0:.2f}".format(mean_vol)\
+                     +",{0:.2f}".format(sd_vol)\
+                     +",{0:.2f}".format(sfnr_voi)\
+                     +",{0:.2f}".format(mean_voi)\
+                     +",{0:.2f}".format(sd_voi)\
+                     +",{0:.2f}\n".format(drift)  )
 
     def voi(self, box_size):
         '''
