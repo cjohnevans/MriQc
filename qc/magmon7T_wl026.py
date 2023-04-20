@@ -3,6 +3,13 @@ import matplotlib.pyplot as plt
 import datetime as dt
 import os
 
+# requires magmon7T_aglient.py to be running on the Aglient PC to periodically
+# copy the magmon data file across to the transfer directory.
+# this script then parses the data file into something readable and 
+# generates plots of the pressure and some temperatures
+# this is run as a crontab job via magmon7T_wl026_run.sh 
+# CJE April 2023
+
 # get last log file from directory
 logdir = '/cubric/scanners/mri/7t/magnet_logs/'
 logdirlist = os.listdir(logdir)
