@@ -143,6 +143,13 @@ class FmriQc(MultiVolQc):
     '''
     methods specific to fmri (inherited from mriqc)
     '''    
+    def remove_dummies(self, dummies):
+        '''
+        In some conditions additional volumes need to be removed, above those
+        removed by the sequence.  Yellow phantom on 7T is one case
+        '''
+        self.vol_data = self.vol_data[dummies:, :, :, :]
+
     def drift_correct(self, correct=False, mask=False, plot=False, savepng=False):
         '''
         FmriQc.drift_correct(
@@ -257,6 +264,7 @@ class FmriQc(MultiVolQc):
             t_series = self.timeseries(mask=None, plot=True, savepng=True)
         else:
             voi_mask = np.array(self.voi((10,20,20)), dtype=np.float16)
+            self.remove_dummies(20)
             drift = self.drift_correct(correct=True,mask=voi_mask, plot=True, savepng=True)
             t_series = self.timeseries(mask=voi_mask, plot=True, savepng=True)
 
