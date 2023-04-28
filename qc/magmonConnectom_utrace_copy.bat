@@ -1,1 +1,0 @@
-xcopy  /y c:\MedCom\log\UTraceSrv*.utr y:\logs
