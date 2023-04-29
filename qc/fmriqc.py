@@ -4,18 +4,16 @@ import mriqc
 import os
 
 def splash():
-    print('\nfmriqc.py  -  Rudamentory fmri quality control check\n')
-    print('USAGE:        python path_to_fmriqc/fmriqc.py FMRI_NIFTI ISINVIVO\n')
-    print('ARGUMENTS:    FMRI_NIFTI - 4D data to check (nii or nii.gz)')
-    print('              ISINVIVO   - y/n  y if in vivo data, n if phantom\n')
+    print('\nfmriqc.pc')
+    print('   Rudamentory fmri quality control check\n')
+    print('   USAGE:        python path_to_fmriqc/fmriqc.py FMRI_NIFTI ISINVIVO\n')
+    print('   ARGUMENTS:    FMRI_NIFTI - 4D data to check (nii or nii.gz)')
+    print('                 ISINVIVO   - y/n  y if in vivo data, n if phantom\n')
     return
 
 # argv[0] is command, argv[1] .. argv[n] are arguments
 if len(sys.argv) < 3:
-    print('\nfmriqc.py  -  Rudamentory fmri quality control check\n')
-    print('USAGE:        python path_to_fmriqc/fmriqc.py FMRI_NIFTI ISINVIVO\n')
-    print('ARGUMENTS:    FMRI_NIFTI - 4D data to check (nii or nii.gz)')
-    print('              ISINVIVO   - y/n  y if in vivo data, n if phantom\n')
+    splash()
     sys.exit()
 if not os.path.exists(sys.argv[1]):
     print("Can't find file " + sys.argv[1])
