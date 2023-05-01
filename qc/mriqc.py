@@ -8,7 +8,7 @@ class MultiVolQc:
     '''
     MultiVolQc class: data and methods for dealing with multi-volume MRI data
     '''
-    def __init__(self,filename, in_vivo=True, run_report=True):
+    def __init__(self,filename, in_vivo=True, run_report=False):
         self.in_nii_file = os.path.basename(filename)
         nii_file_noext = self.in_nii_file.split('.')[0]
         self.nii_path = os.path.dirname(filename)
