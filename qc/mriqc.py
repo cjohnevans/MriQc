@@ -337,6 +337,38 @@ class FmriQc(MultiVolQc):
         mask = np.tile(np.nan,self.shape[1:])
         mask[start[0]:end[0], start[1]:end[1], start[2]:end[2]]=1
         return mask   
+    
+class SpikeQc(MultiVolQc):
+    '''
+    Methods for analysis of spike noise check data (single slice, multi vol EPI)
+    
+    '''
+    
+    def spike_check(self):
+        '''
+        SpikeQc.spike_check (
+            
+        )
+        
+        Params:
+            
+        Returns:
+        '''
+        slice_mean = self.timeseries(mask=None, plot=True,savepng=True)
+        plot_histogram(slice_mean)
+        
+        # spike slices - those with a mean signal > 3 stdev above the slice mean
+        all_slice_mean = np.mean(slice_mean)
+        all_slice_std = np.std(slice_mean)
+        spike_slices = slice_mean > all_slice_mean + 2*all_slice_std
+        vv = np.arange(0,spike_slices.shape[0])
+        spike_slice_idx = vv[spike_slices]
+        self.spike_slices = self.vol_data[spike_slices,:,:,:]
+        print(spike_slice_idx)
+        fig,ax = plt.subplots(1,5)
+        for sl in range(spike_slice_idx.size):
+            ax[sl].imshow(self.spike_slices[sl,0,:,:])
+            ax[sl].set_axis_off()
 
 def threshold_vol(vol, by_fraction, threshold):
     '''
