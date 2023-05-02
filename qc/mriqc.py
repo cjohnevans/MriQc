@@ -354,21 +354,35 @@ class SpikeQc(MultiVolQc):
             
         Returns:
         '''
+        
         slice_mean = self.timeseries(mask=None, plot=True,savepng=True)
         plot_histogram(slice_mean)
         
         # spike slices - those with a mean signal > 3 stdev above the slice mean
         all_slice_mean = np.mean(slice_mean)
         all_slice_std = np.std(slice_mean)
-        spike_slices = slice_mean > all_slice_mean + 2*all_slice_std
+        spike_slices = slice_mean > all_slice_mean + 1.5*all_slice_std
         vv = np.arange(0,spike_slices.shape[0])
         spike_slice_idx = vv[spike_slices]
         self.spike_slices = self.vol_data[spike_slices,:,:,:]
         print(spike_slice_idx)
-        fig,ax = plt.subplots(1,5)
-        for sl in range(spike_slice_idx.size):
-            ax[sl].imshow(self.spike_slices[sl,0,:,:])
-            ax[sl].set_axis_off()
+        plot_row_max=5
+        plot_col_max=5
+         
+        fig = plt.figure(figsize=(30/2.5, 30/2.5))
+        ax = fig.subplots(plot_row_max,plot_col_max)
+        for row in range(plot_row_max):
+            for col in range(plot_col_max):
+                ax[row][col].set_axis_off()
+        if spike_slice_idx.size > 15:
+            plot_sl=15
+        else:
+            plot_sl=spike_slice_idx.size
+        used_rows = np.floor_divide(plot_sl,plot_col_max)
+        for sl in range(plot_sl):
+            rr = np.floor_divide(sl,plot_col_max)
+            cc = np.mod(sl,plot_col_max)
+            ax[rr][cc].imshow(self.spike_slices[sl,0,:,:])
 
 def threshold_vol(vol, by_fraction, threshold):
     '''
