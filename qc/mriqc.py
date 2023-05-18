@@ -95,7 +95,7 @@ class MultiVolQc:
         '''
         
         if not np.any(mask):
-            # mask at 25% of peak voxel intensity of mean image
+            # mask at % of peak voxel intensity of mean image (set in basic_stats)
             mask = self.vol_mask 
         # keep volume data as float16 to hep=lp with memory problems
         masked_data = np.array(self.vol_data*mask, dtype=np.float16)
