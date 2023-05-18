@@ -410,17 +410,21 @@ def threshold_vol(vol, by_fraction, threshold):
     mask[mask>=pixel_threshold] = 1
     return mask
 
-def ortho_view(vol, title='image', save_png=False, save_dir='.'):
+def ortho_view(vol, title='image', save_png=False, save_dir='.', im_scale=[]):
     '''
     mriqc.ortho_view(
         vol, 
         title='image', 
-        savepng=False, 
+        savepng=False,
+        save_dir='.'
+        im_scale=[vmin,vmax]
         )
     Params:
     vol: 3D numpy array to display.  Can't be multi_volume
     title: plot title
     save_png: save output as png
+    save_dir: save to directory
+    im_scale: set image scale limits to [vmin, vmax]
     Show middle slice in three orthogonal views
     '''
 
@@ -437,12 +441,16 @@ def ortho_view(vol, title='image', save_png=False, save_dir='.'):
     orth.append(vol[:,mid_slice[1],:])
     orth.append(vol[mid_slice[0],:,:])
 
-    # get max, min values from orth slices
-    for sl in orth:
-        if np.amax(sl[~np.isnan(sl)]) > vmax:
-            vmax = np.amax(sl[~np.isnan(sl)])
-        if np.amin(sl[~np.isnan(sl)]) < vmin:
-            vmin = np.amin(sl[~np.isnan(sl)])
+    # get max, min values from orth slices if not supplied by im_scale
+    if len(im_scale)==2:
+        vmin = im_scale[0]
+        vmax = im_scale[1]
+    else:
+        for sl in orth:
+            if np.amax(sl[~np.isnan(sl)]) > vmax:
+                vmax = np.amax(sl[~np.isnan(sl)])
+            if np.amin(sl[~np.isnan(sl)]) < vmin:
+                vmin = np.amin(sl[~np.isnan(sl)])
     
     fig = plt.figure(figsize=(30/2.56, 20/2.56))
     ax = fig.subplots(2,2)
