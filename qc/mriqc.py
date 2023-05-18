@@ -69,6 +69,33 @@ class MultiVolQc:
             nib.save(nii_mean, os.path.join(self.nii_path, 'fmriqc_mean.nii'))
             nib.save(nii_stdev, os.path.join(self.nii_path, 'fmriqc_stdev.nii'))
             nib.save(nii_mask, os.path.join(self.nii_path, 'fmriqc_mask.nii'))
+
+    def voi(self, box_size):
+        '''
+        MultiVolQc.voi(
+            box_size
+        )
+        
+        Parameters:
+        ----------
+            box_size: 3 elemet tuple of dimensions (slices, rows, cols)
+
+        
+        Returns
+        -------
+            mask(nslice,nrows,ncols): 1 for pixels in mask, NaN outside
+        '''
+        # midpoints of slice, row, columns
+        # for even numbers, midpoint will be start of second half of data (zero indexing)
+        mid_points =  [int(np.floor(dim/2)) for dim in self.shape[1:]]
+        start = []
+        end = []
+        for ii in range(0,3):
+            start.append(mid_points[ii]-int(np.floor(box_size[ii])/2))
+            end.append(start[ii]+box_size[ii])
+        mask = np.tile(np.nan,self.shape[1:])
+        mask[start[0]:end[0], start[1]:end[1], start[2]:end[2]]=1
+        return mask   
     
     def timeseries(self, mask=None, plot=False, savepng=False):
         '''
@@ -311,32 +338,13 @@ class FmriQc(MultiVolQc):
                      +",{0:.2f}".format(sd_voi)\
                      +",{0:.2f}\n".format(drift)  )
 
-    def voi(self, box_size):
-        '''
-        FmriQc.voi(
-            box_size
-        )
-        
-        Parameters:
-        ----------
-            box_size: 3 elemet tuple of dimensions (slices, rows, cols)
+class DiffQc(MultiVolQc):
+    '''
+    
 
-        
-        Returns
-        -------
-            mask(nslice,nrows,ncols): 1 for pixels in mask, NaN outside
-        '''
-        # midpoints of slice, row, columns
-        # for even numbers, midpoint will be start of second half of data (zero indexing)
-        mid_points =  [int(np.floor(dim/2)) for dim in self.shape[1:]]
-        start = []
-        end = []
-        for ii in range(0,3):
-            start.append(mid_points[ii]-int(np.floor(box_size[ii])/2))
-            end.append(start[ii]+box_size[ii])
-        mask = np.tile(np.nan,self.shape[1:])
-        mask[start[0]:end[0], start[1]:end[1], start[2]:end[2]]=1
-        return mask   
+    '''
+    
+
     
 class SpikeQc(MultiVolQc):
     '''
