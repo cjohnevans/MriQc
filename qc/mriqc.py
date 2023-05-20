@@ -10,14 +10,14 @@ class MultiVolQc:
     '''
     def __init__(self,filename, in_vivo=True, run_report=False):
         self.in_nii_file = os.path.basename(filename)
-        nii_file_noext = self.in_nii_file.split('.')[0]
+        self.in_nii_file_root = self.in_nii_file.split('.')[0]
         self.nii_path = os.path.dirname(filename)
         self.in_vivo = False # default to phantom
         self.sfnr = 0
         # load the data here
         self.nii_load()
         self.basic_stats()
-        self.report_path = os.path.join(self.nii_path, nii_file_noext+'_report')
+        self.report_path = os.path.join(self.nii_path, self.in_nii_file_root +'_report')
         if not os.path.exists(self.report_path):
             os.mkdir(self.report_path)
         if run_report:
@@ -338,12 +338,24 @@ class FmriQc(MultiVolQc):
                      +",{0:.2f}".format(sd_voi)\
                      +",{0:.2f}\n".format(drift)  )
 
-class DiffQc(MultiVolQc):
+class MultiVolDiffusion(MultiVolQc):
     '''
-    
+    MultiVolDiffusion:
+        Minimalistic diffusion class as a template for DiffusionQc
 
     '''
+    def __init__(self,filename, in_vivo=True, run_report=False):
+        MultiVolQc.__init__(self,filename, in_vivo=True, run_report=False)
+        with open(os.path.join(self.nii_path,self.in_nii_file_root+'.bval')) as f:
+            self.bvals=f.readline().replace('\n','').split(' ')
     
+    
+class DiffusionQc(MultiVolDiffusion):
+    '''
+    DiffusionQc:
+        DiffusionQc class for dealing with CUBRIC diffusion qc protocol
+    
+    '''
 
     
 class SpikeQc(MultiVolQc):
