@@ -346,9 +346,29 @@ class MultiVolDiffusion(MultiVolQc):
     '''
     def __init__(self,filename, in_vivo=True, run_report=False):
         MultiVolQc.__init__(self,filename, in_vivo=True, run_report=False)
+        self.n_directions = self.read_bval()
+        self.read_bvec()
+
+
+    def read_bval(self):
         with open(os.path.join(self.nii_path,self.in_nii_file_root+'.bval')) as f:
-            self.bvals=f.readline().replace('\n','').split(' ')
-    
+            bvals_str=f.readline().replace('\n','').split(' ')
+            bval_fl = []
+            [ bval_fl.append(float(s)) for s in bvals_str ]
+            self.bval = np.array(bval_fl)
+            return self.bval.size
+            
+    def read_bvec(self):
+        '''
+        returns a bvec np array in the format bvec[axis][volume]
+'''
+        
+        with open(os.path.join(self.nii_path,self.in_nii_file_root+'.bvec')) as f:
+            bvec_fl = []
+            for i in range(0,3):
+                bvec_str=f.readline().replace('\n','').split(' ')
+                [ bvec_fl.append(float(s)) for s in bvec_str ]
+            self.bvec = np.array(bvec_fl).reshape([3,self.n_directions])   
     
 class DiffusionQc(MultiVolDiffusion):
     '''
