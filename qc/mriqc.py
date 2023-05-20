@@ -12,6 +12,8 @@ class MultiVolQc:
         self.in_nii_file = os.path.basename(filename)
         self.in_nii_file_root = self.in_nii_file.split('.')[0]
         self.nii_path = os.path.dirname(filename)
+        self.is_fmri = False
+        self.is_diffusion = False
         self.in_vivo = False # default to phantom
         self.sfnr = 0
         # load the data here
@@ -135,7 +137,7 @@ class MultiVolQc:
             ax = fig.subplots(1,1)
             ax.plot(sig_timeseries)
             ax.set_xlabel('Volume No.')
-            ax.set_ylabel('Mean signal') 
+            ax.set_ylabel('Mean signal')
             if savepng:
                 fig.savefig(os.path.join(self.report_path, 'timeseries.png'))
         return sig_timeseries
@@ -169,7 +171,11 @@ class MultiVolQc:
 class FmriQc(MultiVolQc):
     '''
     methods specific to fmri (inherited from mriqc)
-    '''    
+    '''
+    def __init__(self):
+        MultiVolQc.__init__()
+        self.is_fmri = True
+        
     def remove_dummies(self, dummies):
         '''
         In some conditions additional volumes need to be removed, above those
@@ -346,9 +352,9 @@ class MultiVolDiffusion(MultiVolQc):
     '''
     def __init__(self,filename, in_vivo=True, run_report=False):
         MultiVolQc.__init__(self,filename, in_vivo=True, run_report=False)
+        self.is_diffusion = True
         self.n_directions = self.read_bval()
         self.read_bvec()
-
 
     def read_bval(self):
         with open(os.path.join(self.nii_path,self.in_nii_file_root+'.bval')) as f:
@@ -356,13 +362,13 @@ class MultiVolDiffusion(MultiVolQc):
             bval_fl = []
             [ bval_fl.append(float(s)) for s in bvals_str ]
             self.bval = np.array(bval_fl)
+            self.is_b0 = self.bval==True
             return self.bval.size
             
     def read_bvec(self):
         '''
         returns a bvec np array in the format bvec[axis][volume]
-'''
-        
+        '''        
         with open(os.path.join(self.nii_path,self.in_nii_file_root+'.bvec')) as f:
             bvec_fl = []
             for i in range(0,3):
@@ -376,7 +382,53 @@ class DiffusionQc(MultiVolDiffusion):
         DiffusionQc class for dealing with CUBRIC diffusion qc protocol
     
     '''
+    
+    def g_uniformity(self, diff_weighted, non_diff_weighted):
+        '''
+        g_uniformity(
+               diff_weighted, 
+               non_diff_weighted
+               )
 
+        Params:
+                diff_weighted    :  diffusion weighted (np array)
+                non_diff_weighted:  b0 (np array)
+        Returns:
+                sqrt(ln(s0/sdiff)), i.e. the signal ratio linearised in G
+                
+        Some of the requirements of the protocol:
+                The centre of the image has to align with scanner isocentre, as this is taken as the
+                reference location for 'true' gradient.  An 11x11x11 voxel, centred on isocentre
+                is taken as the reference position.
+
+                Equation being solved here is 
+                   --------------        
+                -\/  ln(s0/sdiff)  = k(1+e) G_ideal
+                where
+                G_ideal is the ideal gradient (i.e. that requested)
+                k is a constant containing timing terms, effective diffusion, gamma
+                e is the required error term (as a fraction of G_ideal)
+                
+                k is estimated by assuming the gradient at isocentre is ideal
+
+        '''
+        s0_sdiff = np.multiply(np.divide(non_diff_weighted,diff_weighted), \
+                        self.vol_mask)
+        sq_ln_sig = np.sqrt(np.log(s0_sdiff))
+
+        # kG is the ideal (k * G) term - approximated by sq_ln_sig as isocentre
+
+        kG_voi = np.multiply(sq_ln_sig, self.voi([11,11,11]))
+        kG_ideal = np.nanmean(kG_voi)
+        g_uniformity_vol = np.divide(sq_ln_sig,kG_ideal)
+        g_uniformity_stdev = np.nanstd(g_uniformity_vol)
+        print(kG_ideal)
+        print(g_uniformity_stdev)
+        ortho_view(g_uniformity_vol)
+        plot_histogram(g_uniformity_vol)
+        return g_uniformity_vol
+
+ 
     
 class SpikeQc(MultiVolQc):
     '''

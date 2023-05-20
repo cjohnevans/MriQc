@@ -12,7 +12,7 @@ import sys
 import os
 sys.path.append('/home/sapje1/python_mrobjects/qc')
 import mriqc
-
+import matplotlib.pyplot as plt
 
 # wl026
 prisma_dir = '/home/sapje1/scratch_sapje1/2023/230518_qc_diffusion/prisma/'
@@ -27,3 +27,5 @@ nii_f = os.path.join(prisma_dir,prisma_f+'.nii')
 prismaqc = mriqc.MultiVolDiffusion(nii_f)
 print(prismaqc.bval)
 print(prismaqc.bvec)
+prismaqc.timeseries(plot=True,savepng=True)
+plt.show()
