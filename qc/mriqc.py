@@ -419,14 +419,12 @@ class DiffusionQc(MultiVolDiffusion):
         # kG is the ideal (k * G) term - approximated by sq_ln_sig as isocentre
 
         kG_voi = np.multiply(sq_ln_sig, self.voi([11,11,11]))
-        kG_ideal = np.nanmean(kG_voi)
-        g_uniformity_vol = np.divide(sq_ln_sig,kG_ideal)
-        g_uniformity_stdev = np.nanstd(g_uniformity_vol)
-        print(kG_ideal)
-        print(g_uniformity_stdev)
-        ortho_view(g_uniformity_vol)
-        plot_histogram(g_uniformity_vol)
-        return g_uniformity_vol
+        g_iso = np.nanmean(kG_voi)
+        g_uniformity_vol = np.divide(sq_ln_sig,g_iso)
+        g_stdev = np.nanstd(g_uniformity_vol)
+#        ortho_view(g_uniformity_vol)
+#        plot_histogram(g_uniformity_vol)
+        return(g_iso, g_stdev, g_uniformity_vol)
 
  
     
