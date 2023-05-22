@@ -15,17 +15,19 @@ import mriqc
 import matplotlib.pyplot as plt
 
 # wl026
-prisma_dir = '/home/sapje1/scratch_sapje1/2023/230518_qc_diffusion/prisma/'
+in_dir = '/home/sapje1/scratch_sapje1/2023/230518_qc_diffusion/prisma/'
 
 # capella
-prisma_dir = '/home/john/data/230518_qc_diffusion/prisma'
+in_dir = '/home/john/data/230518_qc_diffusion/prisma'
+in_f = '23_05_19-15_52_36-DST-1_3_12_2_1107_5_2_43_66075_3_qcdiff_linear_g_b4000_estG70'
 
-prisma_f = '23_05_19-15_52_36-DST-1_3_12_2_1107_5_2_43_66075_3_qcdiff_linear_g_b4000_estG70'
+# win10 laptop
+in_dir="C:/Users/sapje1/data/diffqc/23_05_18-15_28_59-DST-1_3_12_2_1107_5_2_0_19950"
+in_f="23_05_18-15_28_59-DST-1_3_12_2_1107_5_2_0_19950_5_qadiff_linear_g_gmax291"
 
-nii_f = os.path.join(prisma_dir,prisma_f+'.nii')
+nii_f = os.path.join(in_dir,in_f+'.nii')
 
-prismaqc = mriqc.MultiVolDiffusion(nii_f)
-print(prismaqc.bval)
-print(prismaqc.bvec)
-prismaqc.timeseries(plot=True,savepng=True)
+diffqc = mriqc.DiffusionQc(nii_f, nax=3,namp=6, nrep=5)
+diffqc.timeseries(plot=True,savepng=False)
 plt.show()
+diffqc.prep_axis_amp_rep()

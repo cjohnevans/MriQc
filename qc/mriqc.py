@@ -382,6 +382,98 @@ class DiffusionQc(MultiVolDiffusion):
         DiffusionQc class for dealing with CUBRIC diffusion qc protocol
     
     '''
+    def __init__(self,filename, in_vivo=True, run_report=False, nax=None, \
+                 namp=None, nrep=None):
+        '''
+        Parameters
+        ----------
+        filename : 
+            nii_file 
+        
+        in_vivo:
+            is in vivo
+            
+        run_report:
+            generate html report
+        
+        nax:
+            number of gradient axes in DiffusionQc acquisition (X,Y,Z)
+        
+        namp:
+            number of gradient amplitude steps acquired, INCLUDING b0s.  Should 
+            be in the range 0..1.  These could be the outputs of the gradient direction 
+            file or calculated from the bvec
+            
+        nrep:
+            number of repeats, to help with SNR
+
+        Returns
+        -------
+        None.
+       
+        
+        
+        '''
+        
+        MultiVolDiffusion.__init__(self,filename, in_vivo=True, run_report=False)
+        self.n_axes = nax
+        self.n_amp = namp
+        self.n_rep = nrep
+    
+    def prep_axis_amp_rep(self):
+        '''
+        prep_axis_amp_rep(
+            )
+
+        Prepare vol_data for gradient uniformity analysis. Use this function
+        for vol_data which is in the format: Axis (slowest varying), amplitude, 
+        repeats (fastest varying) i.e. 
+        b0 x5
+        x, amp1 (x5)
+        x, amp2 (x5)
+        ...
+        y, amp1 (x5)
+        ...
+        b0 x5
+
+        Returns
+        -------
+        None.
+
+        '''
+        
+        b0 = self.vol_data[0:5,:,:,:]
+        print(b0.shape)
+        x_vol = self.vol_data[0:]
+        x = DwGradAxis(self.vol_data, range(5), 5)
+    
+    def prep_rep_amp_axis(self):
+        '''
+        prep_rep_amp_axis(
+            )
+
+        Prepare vol_data for gradient uniformity analysis. Use this function
+        for vol_data which is in the format: Repeats (slowest varying, biggest loop), 
+        amplitude, axis (fastest varying) 
+        i.e. 
+        x, amp1, rep1
+        y, amp1, rep1, 
+        z, amp1, rep1
+        x, amp2, rep1
+        y, amp2, rep1
+        ...
+        x, amp1, rep2
+        ...
+        x, ampN, repM
+        y, ampN, repM
+        z, ampN, repM
+
+        Returns
+        -------
+        None.
+
+        '''
+    
     
     def g_uniformity(self, diff_weighted, non_diff_weighted):
         '''
@@ -425,8 +517,37 @@ class DiffusionQc(MultiVolDiffusion):
 #        ortho_view(g_uniformity_vol)
 #        plot_histogram(g_uniformity_vol)
         return(g_iso, g_stdev, g_uniformity_vol)
+    
+class DwGradAxis:
+    '''
+    Formatted data and methods for inspecting DiffusionQc data for a single gradient axis
 
+    '''
+    def __init__(self, np_grad_axis_vol, grad_amp, n_amp):
+        '''
  
+        Parameters
+        ----------
+        np_grad_axis_vol : numpy nd array
+            An array of 3D vols, each of which is the dw image corresponding to the dw signal 
+            for gradient amplitude given by grad_amp.  Needs n_amp 3D vols
+    
+        grad_amp : list 
+            Gradient amplitudes corresponding to n_amp measurements
+            
+        n_amp : int
+            number of amplitude measurements
+
+        Returns
+        -------
+        None.
+
+        '''
+        self.n_amp = n_amp
+        self.vol_data = np_grad_axis_vol
+        print(self.vol_data.shape)
+        # calculate volume mean, stdev and sfnr
+            
     
 class SpikeQc(MultiVolQc):
     '''
