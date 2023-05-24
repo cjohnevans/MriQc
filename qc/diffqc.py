@@ -27,7 +27,7 @@ in_f="23_05_18-15_28_59-DST-1_3_12_2_1107_5_2_0_19950_5_qadiff_linear_g_gmax291"
 
 nii_f = os.path.join(in_dir,in_f+'.nii')
 
-diffqc = mriqc.DiffusionQc(nii_f, nax=3,namp=6, nrep=5)
+diffqc = mriqc.DiffusionQc(nii_f, nax=3,namp=5, nrep=5,nstart=5,nend=5,b0_in_loop=False)
 diffqc.timeseries(plot=True,savepng=False)
 plt.show()
 diffqc.prep_axis_amp_rep()

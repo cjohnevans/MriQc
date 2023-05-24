@@ -45,7 +45,7 @@ class MultiVolQc:
         self.affine = self.nii_img.affine
         if self.vol_data.ndim > 3:
             self.is_multi_volume = True
-            self.n_vols = self.shape[-1]
+            self.n_vols = self.shape[0]
         else:
             self.is_multi_volume = False
             self.n_vols = 1
@@ -383,7 +383,7 @@ class DiffusionQc(MultiVolDiffusion):
     
     '''
     def __init__(self,filename, in_vivo=True, run_report=False, nax=None, \
-                 namp=None, nrep=None):
+                 namp=None, nrep=None, nstart=None, nend=None, b0_in_loop=False):
         '''
         Parameters
         ----------
@@ -400,25 +400,37 @@ class DiffusionQc(MultiVolDiffusion):
             number of gradient axes in DiffusionQc acquisition (X,Y,Z)
         
         namp:
-            number of gradient amplitude steps acquired, INCLUDING b0s.  Should 
-            be in the range 0..1.  These could be the outputs of the gradient direction 
-            file or calculated from the bvec
+            number of gradient amplitudes in loop (may or may not include
+            b0, depending on b0_in_loop)
             
         nrep:
             number of repeats, to help with SNR
+            
+        b0_in_loop: 
+            True/False.  Are b0s in the main loop or at start/end?
+            
+        n_start: 
+            vols at start (if outside the main loop)
+            
+        n_end:  
+            vols at end (if outside the main loop)
+            n_amp:
+
+
 
         Returns
         -------
         None.
-       
-        
-        
+     
         '''
         
         MultiVolDiffusion.__init__(self,filename, in_vivo=True, run_report=False)
         self.n_axes = nax
         self.n_amp = namp
         self.n_rep = nrep
+        self.b0_in_loop = b0_in_loop
+        self.n_start = nstart
+        self.n_end = nend
     
     def prep_axis_amp_rep(self):
         '''
@@ -428,13 +440,13 @@ class DiffusionQc(MultiVolDiffusion):
         Prepare vol_data for gradient uniformity analysis. Use this function
         for vol_data which is in the format: Axis (slowest varying), amplitude, 
         repeats (fastest varying) i.e. 
-        b0 x5
-        x, amp1 (x5)
-        x, amp2 (x5)
+        b0 (n_start)
+        x, amp1 (n_rep)
+        x, amp2 (n_rep)
         ...
-        y, amp1 (x5)
+        y, amp1 (n_rep)
         ...
-        b0 x5
+        b0 (n_end)
 
         Returns
         -------
@@ -442,10 +454,14 @@ class DiffusionQc(MultiVolDiffusion):
 
         '''
         
-        b0 = self.vol_data[0:5,:,:,:]
+        b0 = self.vol_data[0:self.n_start,:,:,:]
         print(b0.shape)
-        x_vol = self.vol_data[0:]
-        x = DwGradAxis(self.vol_data, range(5), 5)
+        # number of vols in a block of gradient axis acquisitions is n_rep*n_amp
+        # start geneating a set of views into original data
+        x_vol = self.vol_data[self.n_start:(self.n_start + self.n_amp*self.n_rep)]
+
+        x = DwGradAxis(b0,x_vol, self.n_rep, self.n_amp)
+        plt.plot(x_vol[:,25,32,32])
     
     def prep_rep_amp_axis(self):
         '''
@@ -473,7 +489,7 @@ class DiffusionQc(MultiVolDiffusion):
         None.
 
         '''
-    
+           
     
     def g_uniformity(self, diff_weighted, non_diff_weighted):
         '''
@@ -523,12 +539,15 @@ class DwGradAxis:
     Formatted data and methods for inspecting DiffusionQc data for a single gradient axis
 
     '''
-    def __init__(self, np_grad_axis_vol, grad_amp, n_amp):
+    def __init__(self, b0_vols, grad_axis_vols, n_rep, n_amp):
         '''
  
         Parameters
         ----------
-        np_grad_axis_vol : numpy nd array
+        b0s_vols : numpy nd array
+            An array of 3D vols, each of which is the non-dw image 
+
+        grad_axis_vols : numpy nd array
             An array of 3D vols, each of which is the dw image corresponding to the dw signal 
             for gradient amplitude given by grad_amp.  Needs n_amp 3D vols
     
@@ -543,11 +562,25 @@ class DwGradAxis:
         None.
 
         '''
-        self.n_amp = n_amp
-        self.vol_data = np_grad_axis_vol
-        print(self.vol_data.shape)
-        # calculate volume mean, stdev and sfnr
-            
+        # check to see whether there are reps in b0
+        if b0_vols.ndim > 3:
+            b0m=np.mean(b0_vols,0)
+        print(b0m.shape)
+        ortho_view(b0m)
+
+        if n_rep > 1:
+            g1 = grad_axis_vols.reshape([n_amp,n_rep, \
+                                          grad_axis_vols.shape[-3], \
+                                          grad_axis_vols.shape[-2], \
+                                          grad_axis_vols.shape[-1]])
+            print('new shape')
+            print(g1.shape)
+            gm = np.mean(g1,1)
+            print(gm.shape)
+
+         
+        ortho_view(gm[0,:,:,:])
+        ortho_view(gm[4,:,:,:])
     
 class SpikeQc(MultiVolQc):
     '''
