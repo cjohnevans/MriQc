@@ -31,3 +31,4 @@ diffqc = mriqc.DiffusionQc(nii_f, nax=3,namp=5, nrep=5,nstart=5,nend=5,b0_in_loo
 diffqc.timeseries(plot=True,savepng=False)
 plt.show()
 diffqc.prep_axis_amp_rep()
+diffqc.x.g_uniformity()

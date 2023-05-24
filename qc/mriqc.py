@@ -458,10 +458,19 @@ class DiffusionQc(MultiVolDiffusion):
         print(b0.shape)
         # number of vols in a block of gradient axis acquisitions is n_rep*n_amp
         # start geneating a set of views into original data
-        x_vol = self.vol_data[self.n_start:(self.n_start + self.n_amp*self.n_rep)]
+        x_start = self.n_start
+        y_start = self.n_start + self.n_amp*self.n_rep
+        z_start = y_start + self.n_amp*self.n_rep
+        x_vol = self.vol_data[x_start:y_start]
+        y_vol = self.vol_data[y_start:z_start]
+        z_vol = self.vol_data[z_start:-self.n_end]
 
-        x = DwGradAxis(b0,x_vol, self.n_rep, self.n_amp)
+        self.x = DwGradAxis(b0,x_vol, self.vol_mask, self.voi([11,11,11]), self.n_rep, self.n_amp)
+        self.y = DwGradAxis(b0,y_vol, self.vol_mask, self.voi([11,11,11]), self.n_rep, self.n_amp)
+        self.x = DwGradAxis(b0,y_vol, self.vol_mask, self.voi([11,11,11]), self.n_rep, self.n_amp)
+        
         plt.plot(x_vol[:,25,32,32])
+        plt.title('X')
     
     def prep_rep_amp_axis(self):
         '''
@@ -491,11 +500,56 @@ class DiffusionQc(MultiVolDiffusion):
         '''
            
     
-    def g_uniformity(self, diff_weighted, non_diff_weighted):
+    
+class DwGradAxis:
+    '''
+    Formatted data and methods for inspecting DiffusionQc data for a single gradient axis
+
+    '''
+    def __init__(self, b0_vols, grad_axis_vols, mask, voi_mask, n_rep, n_amp):
+        '''
+ 
+        Parameters
+        ----------
+        b0s_vols : numpy nd array
+            An array of 3D vols, each of which is the non-dw image 
+
+        grad_axis_vols : numpy nd array
+            An array of 3D vols, each of which is the dw image corresponding to the dw signal 
+            for gradient amplitude given by grad_amp.  Needs n_amp 3D vols
+    
+        grad_amp : list 
+            Gradient amplitudes corresponding to n_amp measurements
+            
+        n_amp : int
+            number of amplitude measurements
+
+        Returns
+        -------
+        None.
+
+        '''
+        # check to see whether there are reps in b0
+        # assign to b0 member of DeGradAxis
+        if b0_vols.ndim > 3:
+            self.b0 = np.mean(b0_vols,0)
+        
+        self.mask = mask
+        self.voi_mask = voi_mask
+        self.n_amp = n_amp
+
+        if n_rep > 1:
+            g1 = grad_axis_vols.reshape([n_amp,n_rep, \
+                                          grad_axis_vols.shape[-3], \
+                                          grad_axis_vols.shape[-2], \
+                                          grad_axis_vols.shape[-1]])
+            # mean across the n_reps dimension 
+            self.diff_weighted = np.mean(g1,1)
+        
+
+    def g_uniformity(self):
         '''
         g_uniformity(
-               diff_weighted, 
-               non_diff_weighted
                )
 
         Params:
@@ -520,67 +574,25 @@ class DiffusionQc(MultiVolDiffusion):
                 k is estimated by assuming the gradient at isocentre is ideal
 
         '''
-        s0_sdiff = np.multiply(np.divide(non_diff_weighted,diff_weighted), \
-                        self.vol_mask)
+        print('s0_diff diff_weighted')
+        print([self.b0.shape,self.diff_weighted.shape])
+        
+        s0_sdiff = np.multiply(np.divide(self.b0, self.diff_weighted), \
+                        self.mask)
         sq_ln_sig = np.sqrt(np.log(s0_sdiff))
 
         # kG is the ideal (k * G) term - approximated by sq_ln_sig as isocentre
-
-        kG_voi = np.multiply(sq_ln_sig, self.voi([11,11,11]))
+        kG_voi = np.multiply(sq_ln_sig, self.voi_mask)
         g_iso = np.nanmean(kG_voi)
         g_uniformity_vol = np.divide(sq_ln_sig,g_iso)
+        print(g_uniformity_vol.shape)
         g_stdev = np.nanstd(g_uniformity_vol)
-#        ortho_view(g_uniformity_vol)
-#        plot_histogram(g_uniformity_vol)
+        for i in range(self.n_amp):
+            ortho_view(g_uniformity_vol[i])
+        plot_histogram(g_uniformity_vol)
+        # need to deal with the fact that multiple volumes are reported here
         return(g_iso, g_stdev, g_uniformity_vol)
-    
-class DwGradAxis:
-    '''
-    Formatted data and methods for inspecting DiffusionQc data for a single gradient axis
 
-    '''
-    def __init__(self, b0_vols, grad_axis_vols, n_rep, n_amp):
-        '''
- 
-        Parameters
-        ----------
-        b0s_vols : numpy nd array
-            An array of 3D vols, each of which is the non-dw image 
-
-        grad_axis_vols : numpy nd array
-            An array of 3D vols, each of which is the dw image corresponding to the dw signal 
-            for gradient amplitude given by grad_amp.  Needs n_amp 3D vols
-    
-        grad_amp : list 
-            Gradient amplitudes corresponding to n_amp measurements
-            
-        n_amp : int
-            number of amplitude measurements
-
-        Returns
-        -------
-        None.
-
-        '''
-        # check to see whether there are reps in b0
-        if b0_vols.ndim > 3:
-            b0m=np.mean(b0_vols,0)
-        print(b0m.shape)
-        ortho_view(b0m)
-
-        if n_rep > 1:
-            g1 = grad_axis_vols.reshape([n_amp,n_rep, \
-                                          grad_axis_vols.shape[-3], \
-                                          grad_axis_vols.shape[-2], \
-                                          grad_axis_vols.shape[-1]])
-            print('new shape')
-            print(g1.shape)
-            gm = np.mean(g1,1)
-            print(gm.shape)
-
-         
-        ortho_view(gm[0,:,:,:])
-        ortho_view(gm[4,:,:,:])
     
 class SpikeQc(MultiVolQc):
     '''
