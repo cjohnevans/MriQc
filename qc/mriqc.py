@@ -172,8 +172,8 @@ class FmriQc(MultiVolQc):
     '''
     methods specific to fmri (inherited from mriqc)
     '''
-    def __init__(self):
-        MultiVolQc.__init__()
+    def __init__(self,filename, in_vivo=False, run_report=True):
+        MultiVolQc.__init__(self,filename, in_vivo, run_report)
         self.is_fmri = True
         
     def remove_dummies(self, dummies):
