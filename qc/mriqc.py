@@ -2,6 +2,7 @@ import nibabel as nib
 import numpy as np
 import os
 import matplotlib.pyplot as plt
+import pandas as pd
 
 # MultiVolQc is generic for checking multi-volume MR data (e.g. fmri, qmt)
 class MultiVolQc:
@@ -639,6 +640,76 @@ class SpikeQc(MultiVolQc):
             rr = np.floor_divide(sl,plot_col_max)
             cc = np.mod(sl,plot_col_max)
             ax[rr][cc].imshow(self.spike_slices[sl,0,:,:])
+            
+class FmriQcOverview():
+    '''
+    class FmriQcOverview:
+        Generate summary of FmriQc data over a time period
+        Requires an input path with output *_report directories containing
+        summary *.dat files with sfnr etc outputs for a qc run.
+    '''
+    def __init__(self,path_to_reports):
+        '''
+        Parameters
+        ----------
+        path_to_reports : string
+            Path to top level where FmriQc reports are saved 
+
+        Returns
+        -------
+        None.
+        '''
+        self.dat_files = []
+        for root,dirs,files in os.walk(path_to_reports):
+            for ff in files:
+                if '.dat' in ff:
+                    self.dat_files.append(os.path.join(root,ff))                    
+        self.dat_to_pandas()
+        self.plots()
+        
+    def dat_to_pandas(self):
+        '''
+        Read in dat files (from self.dat_files) into pandas dataframe
+
+        Returns
+        -------
+        None.
+
+        '''
+        data_str = []
+        for df in self.dat_files:
+            with open(df) as f:
+                title=f.readline().replace('\n','').split(',')
+                data_str.append(f.readline().replace('\n','').split(','))
+
+        self.oview_qc=pd.DataFrame(data_str)
+        self.oview_qc.columns = title
+        self.oview_qc['sfnr_vol'] = self.oview_qc['sfnr_vol'].astype('float')
+        self.oview_qc['mean_vol'] = self.oview_qc['mean_vol'].astype('float')
+        self.oview_qc['sd_vol'] = self.oview_qc['sd_vol'].astype('float')
+        self.oview_qc['sfnr_voi'] = self.oview_qc['sfnr_voi'].astype('float')
+        self.oview_qc['mean_voi'] = self.oview_qc['mean_voi'].astype('float')
+        self.oview_qc['sd_voi'] = self.oview_qc['sd_voi'].astype('float')
+        self.oview_qc['drift'] = self.oview_qc['drift'].astype('float')
+#        self.oview_qc.index=self.oview_qc['File']
+#        self.oview_qc.drop('File', axis=1)
+        date_str = self.oview_qc['File'].str.split('-', expand=True)[0]
+        date_pd = date_str.str.split('_', expand=True)
+        date_pd = date_pd.rename(columns={0:'year_short',1:'month',2:'day'})
+        date_pd = date_pd.astype('int16')
+        date_pd['year'] = date_pd['year_short'].apply(lambda x: x+2000)
+        date_pd.pop('year_short')
+        self.oview_qc['date']=pd.to_datetime(date_pd)
+        self.oview_qc['scanner'] = self.oview_qc['File'].str.split('-', expand=True)[3].str.split('_', expand=True)[8]
+        self.oview_qc=self.oview_qc.rename(columns={'sfnr_vol':'sfnr_volume', 'mean_vol':'mean_volume', 'sd_vol':'sd_volume'})    
+        self.oview_qc.tail()
+        
+    def plots(self):
+        self.oview_qc.plot(x='date', y=['sfnr_volume', 'sfnr_voi'])   
+        self.oview_qc.plot(x='date', y=['mean_volume', 'mean_voi'])
+        self.oview_qc.plot(x='date', y=['sd_volume', 'sd_voi'])
+        self.oview_qc.plot(x='date', y=['drift'])
+          
 
 def threshold_vol(vol, by_fraction, threshold):
     '''
@@ -749,6 +820,9 @@ def plot_histogram(vol, save_png=False, save_path = '.'):
     ax.set_title('Image histogram')
     if save_png:
         fig.savefig(os.path.join(save_path, 'pixel_histogram.png'))
+        
+        
+
 
 
     
