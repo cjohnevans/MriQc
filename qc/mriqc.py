@@ -3,6 +3,7 @@ import numpy as np
 import os
 import matplotlib.pyplot as plt
 import pandas as pd
+import warnings
 
 # MultiVolQc is generic for checking multi-volume MR data (e.g. fmri, qmt)
 class MultiVolQc:
@@ -131,7 +132,9 @@ class MultiVolQc:
         masked_data = np.array(self.vol_data*mask, dtype=np.float16)
         # but polyfit needs float64 (but data smaller now)
         # and np.mean needs float64 too
-        sig_timeseries = np.array( \
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")        
+            sig_timeseries = np.array( \
                 np.nanmean(np.nanmean(np.nanmean(masked_data, axis=3, dtype=np.float64), axis=2, dtype=np.float64), axis=1, dtype=np.float64))
         if plot:
             fig = plt.figure(figsize=(30/2.56, 20/2.56))
@@ -261,26 +264,25 @@ class FmriQc(MultiVolQc):
             # mask at percentage of peak voxel intensity of mean image (from basic_stats)
             mask = self.vol_mask
         # mask is 1 for pixels within mask, NaN for those outside
+        # plot the unmasked version, but report stats on the masked version
         self.vol_sfnr_whole = np.divide(self.vol_mean, self.vol_stdev, \
                              out=np.zeros_like(self.vol_mean), \
                              where=self.vol_stdev!=0)
         self.vol_mean = self.vol_mean * mask
         self.vol_stdev = self.vol_stdev * mask
-        tmp_vol_mean = self.vol_mean
-        tmp_vol_stdev = self.vol_stdev
 
         # deal with inf.  
         self.vol_sfnr = np.divide(self.vol_mean, self.vol_stdev, \
                              out=np.zeros_like(self.vol_mean), \
                              where=self.vol_stdev!=0)
         if plot==True:
-            ortho_view(self.vol_sfnr, title='SFNR', save_png=savepng, save_dir=self.report_path)
+            ortho_view(self.vol_sfnr_whole, title='SFNR', save_png=savepng, save_dir=self.report_path)
 
         # discard zero values (as these are probably from the mask)
         sfnr = np.nanmean(np.ravel(self.vol_sfnr))
         vmean = np.nanmean(np.ravel(self.vol_mean))
         vstd = np.nanmean(np.ravel(self.vol_stdev))
-        print('SFNR=' + str(sfnr) + '     mean=' + str(vmean) + '   stdev=' + str(vstd))        
+        print("SFNR={0:.2f}   Mean={1:.2f}   stdev={2:.2f}\n".format(sfnr, vmean, vstd))
         if savenii:
             # create nifti, using same affine transform as original
             nii_sfnr = nib.Nifti1Image(np.array(self.vol_sfnr, dtype=np.float64), self.affine)
@@ -298,12 +300,12 @@ class FmriQc(MultiVolQc):
         
         if self.in_vivo:
             drift = self.drift_correct(correct=True,mask=False, plot=True, savepng=True)
-            t_series = self.timeseries(mask=None, plot=False, savepng=True)
+#            t_series = self.timeseries(mask=None, plot=False, savepng=True)
         else:
             voi_mask = np.array(self.voi((10,20,20)), dtype=np.float16)
             self.remove_dummies(20)
             drift = self.drift_correct(correct=True,mask=voi_mask, plot=True, savepng=True)
-            t_series = self.timeseries(mask=voi_mask, plot=False, savepng=True)
+#            t_series = self.timeseries(mask=voi_mask, plot=False, savepng=True)
 
         if not self.in_vivo:
             # running calc_sfnr with mask overwrites values in self
@@ -347,14 +349,13 @@ class FmriQc(MultiVolQc):
                      +",{0:.2f}".format(mean_voi)\
                      +",{0:.2f}".format(sd_voi)\
                      +",{0:.2f}\n".format(drift)  )
-        print('sfnr_vol,mean_vol,sd_vol,sfnr_voi,mean_voi,sd_voi,drift\n')
-        print("{0:.2f}".format(sfnr_vol)\
-            +", {0:.2f}".format(mean_vol)\
-            +", {0:.2f}".format(sd_vol)\
-            +", {0:.2f}".format(sfnr_voi)\
-            +", {0:.2f}".format(mean_voi)\
-            +", {0:.2f}".format(sd_voi)\
-            +", {0:.2f}\n".format(drift) )
+        print("sfnr_volume =  {0:.2f}\n".format(sfnr_vol)\
+            + "mean_volume =  {0:.2f}\n".format(mean_vol)\
+            + "std_volume  =  {0:.2f}\n".format(sd_vol)\
+            + "sfnr_VOI    =  {0:.2f}\n".format(sfnr_voi)\
+            + "mean_VOI    =  {0:.2f}\n".format(mean_voi)\
+            + "std_VOI     =  {0:.2f}\n".format(sd_voi)\
+            + "drift (%)   =  {0:.2f}".format(drift) )
 
 class MultiVolDiffusion(MultiVolQc):
     '''
