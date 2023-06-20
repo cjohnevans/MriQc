@@ -2,19 +2,20 @@ import nibabel as nib
 import numpy as np
 import os
 import matplotlib.pyplot as plt
+import pandas as pd
 
 # MultiVolQc is generic for checking multi-volume MR data (e.g. fmri, qmt)
 class MultiVolQc:
     '''
     MultiVolQc class: data and methods for dealing with multi-volume MRI data
     '''
-    def __init__(self,filename, in_vivo=True, run_report=False):
+    def __init__(self,filename, in_vivo=False, run_report=False):
         self.in_nii_file = os.path.basename(filename)
         self.in_nii_file_root = self.in_nii_file.split('.')[0]
         self.nii_path = os.path.dirname(filename)
         self.is_fmri = False
         self.is_diffusion = False
-        self.in_vivo = False # default to phantom
+        self.in_vivo = in_vivo
         self.sfnr = 0
         # load the data here
         self.nii_load()
@@ -50,7 +51,7 @@ class MultiVolQc:
             self.is_multi_volume = False
             self.n_vols = 1
             
-    def basic_stats(self, savenii=False):
+    def basic_stats(self, savenii=False, lthresh=0.1):
         '''
         MultiVolQc.basic_stats( 
             savenii=False
@@ -62,15 +63,15 @@ class MultiVolQc:
         self.vol_mean = np.mean(self.vol_data,0, dtype=np.float64)
         self.vol_stdev = np.std(self.vol_data,0, dtype=np.float64)
         # 25% mask too high for 7T.  Reduce to 10%
-        self.vol_mask = threshold_vol(self.vol_mean, True, 0.1)  
+        self.vol_mask = threshold_vol(self.vol_mean, True, lthresh)  
         if savenii:
             # create nifti, using same affine transform as original
             nii_mean = nib.Nifti1Image(self.vol_mean, self.affine)
             nii_stdev = nib.Nifti1Image(self.vol_stdev, self.affine)
             nii_mask = nib.Nifti1Image(self.vol_mask, self.affine)
-            nib.save(nii_mean, os.path.join(self.nii_path, 'fmriqc_mean.nii'))
-            nib.save(nii_stdev, os.path.join(self.nii_path, 'fmriqc_stdev.nii'))
-            nib.save(nii_mask, os.path.join(self.nii_path, 'fmriqc_mask.nii'))
+            nib.save(nii_mean, os.path.join(self.report_path, 'fmriqc_mean.nii'))
+            nib.save(nii_stdev, os.path.join(self.report_path, 'fmriqc_stdev.nii'))
+            nib.save(nii_mask, os.path.join(self.report_path, 'fmriqc_mask.nii'))
 
     def voi(self, box_size):
         '''
@@ -260,6 +261,9 @@ class FmriQc(MultiVolQc):
             # mask at percentage of peak voxel intensity of mean image (from basic_stats)
             mask = self.vol_mask
         # mask is 1 for pixels within mask, NaN for those outside
+        self.vol_sfnr_whole = np.divide(self.vol_mean, self.vol_stdev, \
+                             out=np.zeros_like(self.vol_mean), \
+                             where=self.vol_stdev!=0)
         self.vol_mean = self.vol_mean * mask
         self.vol_stdev = self.vol_stdev * mask
         tmp_vol_mean = self.vol_mean
@@ -276,11 +280,11 @@ class FmriQc(MultiVolQc):
         sfnr = np.nanmean(np.ravel(self.vol_sfnr))
         vmean = np.nanmean(np.ravel(self.vol_mean))
         vstd = np.nanmean(np.ravel(self.vol_stdev))
-        print(sfnr,vmean,vstd)        
+        print('SFNR=' + str(sfnr) + '     mean=' + str(vmean) + '   stdev=' + str(vstd))        
         if savenii:
             # create nifti, using same affine transform as original
             nii_sfnr = nib.Nifti1Image(np.array(self.vol_sfnr, dtype=np.float64), self.affine)
-            nib.save(nii_sfnr, os.path.join(self.nii_path, 'fmriqc_sfnr.nii'))      
+            nib.save(nii_sfnr, os.path.join(self.report_path, 'fmriqc_sfnr.nii'))      
         return (sfnr, vmean, vstd)
         
     def create_report(self):
@@ -294,12 +298,12 @@ class FmriQc(MultiVolQc):
         
         if self.in_vivo:
             drift = self.drift_correct(correct=True,mask=False, plot=True, savepng=True)
-            t_series = self.timeseries(mask=None, plot=True, savepng=True)
+            t_series = self.timeseries(mask=None, plot=False, savepng=True)
         else:
             voi_mask = np.array(self.voi((10,20,20)), dtype=np.float16)
             self.remove_dummies(20)
             drift = self.drift_correct(correct=True,mask=voi_mask, plot=True, savepng=True)
-            t_series = self.timeseries(mask=voi_mask, plot=True, savepng=True)
+            t_series = self.timeseries(mask=voi_mask, plot=False, savepng=True)
 
         if not self.in_vivo:
             # running calc_sfnr with mask overwrites values in self
@@ -343,6 +347,14 @@ class FmriQc(MultiVolQc):
                      +",{0:.2f}".format(mean_voi)\
                      +",{0:.2f}".format(sd_voi)\
                      +",{0:.2f}\n".format(drift)  )
+        print('sfnr_vol,mean_vol,sd_vol,sfnr_voi,mean_voi,sd_voi,drift\n')
+        print("{0:.2f}".format(sfnr_vol)\
+            +", {0:.2f}".format(mean_vol)\
+            +", {0:.2f}".format(sd_vol)\
+            +", {0:.2f}".format(sfnr_voi)\
+            +", {0:.2f}".format(mean_voi)\
+            +", {0:.2f}".format(sd_voi)\
+            +", {0:.2f}\n".format(drift) )
 
 class MultiVolDiffusion(MultiVolQc):
     '''
@@ -639,6 +651,76 @@ class SpikeQc(MultiVolQc):
             rr = np.floor_divide(sl,plot_col_max)
             cc = np.mod(sl,plot_col_max)
             ax[rr][cc].imshow(self.spike_slices[sl,0,:,:])
+            
+class FmriQcOverview():
+    '''
+    class FmriQcOverview:
+        Generate summary of FmriQc data over a time period
+        Requires an input path with output *_report directories containing
+        summary *.dat files with sfnr etc outputs for a qc run.
+    '''
+    def __init__(self,path_to_reports):
+        '''
+        Parameters
+        ----------
+        path_to_reports : string
+            Path to top level where FmriQc reports are saved 
+
+        Returns
+        -------
+        None.
+        '''
+        self.dat_files = []
+        for root,dirs,files in os.walk(path_to_reports):
+            for ff in files:
+                if '.dat' in ff:
+                    self.dat_files.append(os.path.join(root,ff))                    
+        self.dat_to_pandas()
+        self.plots()
+        
+    def dat_to_pandas(self):
+        '''
+        Read in dat files (from self.dat_files) into pandas dataframe
+
+        Returns
+        -------
+        None.
+
+        '''
+        data_str = []
+        for df in self.dat_files:
+            with open(df) as f:
+                title=f.readline().replace('\n','').split(',')
+                data_str.append(f.readline().replace('\n','').split(','))
+
+        self.oview_qc=pd.DataFrame(data_str)
+        self.oview_qc.columns = title
+        self.oview_qc['sfnr_vol'] = self.oview_qc['sfnr_vol'].astype('float')
+        self.oview_qc['mean_vol'] = self.oview_qc['mean_vol'].astype('float')
+        self.oview_qc['sd_vol'] = self.oview_qc['sd_vol'].astype('float')
+        self.oview_qc['sfnr_voi'] = self.oview_qc['sfnr_voi'].astype('float')
+        self.oview_qc['mean_voi'] = self.oview_qc['mean_voi'].astype('float')
+        self.oview_qc['sd_voi'] = self.oview_qc['sd_voi'].astype('float')
+        self.oview_qc['drift'] = self.oview_qc['drift'].astype('float')
+#        self.oview_qc.index=self.oview_qc['File']
+#        self.oview_qc.drop('File', axis=1)
+        date_str = self.oview_qc['File'].str.split('-', expand=True)[0]
+        date_pd = date_str.str.split('_', expand=True)
+        date_pd = date_pd.rename(columns={0:'year_short',1:'month',2:'day'})
+        date_pd = date_pd.astype('int16')
+        date_pd['year'] = date_pd['year_short'].apply(lambda x: x+2000)
+        date_pd.pop('year_short')
+        self.oview_qc['date']=pd.to_datetime(date_pd)
+        self.oview_qc['scanner'] = self.oview_qc['File'].str.split('-', expand=True)[3].str.split('_', expand=True)[8]
+        self.oview_qc=self.oview_qc.rename(columns={'sfnr_vol':'sfnr_volume', 'mean_vol':'mean_volume', 'sd_vol':'sd_volume'})    
+        self.oview_qc.tail()
+        
+    def plots(self):
+        self.oview_qc.plot(x='date', y=['sfnr_volume', 'sfnr_voi'])   
+        self.oview_qc.plot(x='date', y=['mean_volume', 'mean_voi'])
+        self.oview_qc.plot(x='date', y=['sd_volume', 'sd_voi'])
+        self.oview_qc.plot(x='date', y=['drift'])
+          
 
 def threshold_vol(vol, by_fraction, threshold):
     '''
@@ -749,6 +831,9 @@ def plot_histogram(vol, save_png=False, save_path = '.'):
     ax.set_title('Image histogram')
     if save_png:
         fig.savefig(os.path.join(save_path, 'pixel_histogram.png'))
+        
+        
+
 
 
     
