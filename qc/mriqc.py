@@ -51,7 +51,7 @@ class MultiVolQc:
             self.is_multi_volume = False
             self.n_vols = 1
             
-    def basic_stats(self, savenii=False):
+    def basic_stats(self, savenii=False, lthresh=0.1):
         '''
         MultiVolQc.basic_stats( 
             savenii=False
@@ -63,15 +63,15 @@ class MultiVolQc:
         self.vol_mean = np.mean(self.vol_data,0, dtype=np.float64)
         self.vol_stdev = np.std(self.vol_data,0, dtype=np.float64)
         # 25% mask too high for 7T.  Reduce to 10%
-        self.vol_mask = threshold_vol(self.vol_mean, True, 0.1)  
+        self.vol_mask = threshold_vol(self.vol_mean, True, lthresh)  
         if savenii:
             # create nifti, using same affine transform as original
             nii_mean = nib.Nifti1Image(self.vol_mean, self.affine)
             nii_stdev = nib.Nifti1Image(self.vol_stdev, self.affine)
             nii_mask = nib.Nifti1Image(self.vol_mask, self.affine)
-            nib.save(nii_mean, os.path.join(self.nii_path, 'fmriqc_mean.nii'))
-            nib.save(nii_stdev, os.path.join(self.nii_path, 'fmriqc_stdev.nii'))
-            nib.save(nii_mask, os.path.join(self.nii_path, 'fmriqc_mask.nii'))
+            nib.save(nii_mean, os.path.join(self.report_path, 'fmriqc_mean.nii'))
+            nib.save(nii_stdev, os.path.join(self.report_path, 'fmriqc_stdev.nii'))
+            nib.save(nii_mask, os.path.join(self.report_path, 'fmriqc_mask.nii'))
 
     def voi(self, box_size):
         '''
@@ -284,7 +284,7 @@ class FmriQc(MultiVolQc):
         if savenii:
             # create nifti, using same affine transform as original
             nii_sfnr = nib.Nifti1Image(np.array(self.vol_sfnr, dtype=np.float64), self.affine)
-            nib.save(nii_sfnr, os.path.join(self.nii_path, 'fmriqc_sfnr.nii'))      
+            nib.save(nii_sfnr, os.path.join(self.report_path, 'fmriqc_sfnr.nii'))      
         return (sfnr, vmean, vstd)
         
     def create_report(self):
