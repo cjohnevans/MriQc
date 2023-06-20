@@ -9,13 +9,13 @@ class MultiVolQc:
     '''
     MultiVolQc class: data and methods for dealing with multi-volume MRI data
     '''
-    def __init__(self,filename, in_vivo=True, run_report=False):
+    def __init__(self,filename, in_vivo=False, run_report=False):
         self.in_nii_file = os.path.basename(filename)
         self.in_nii_file_root = self.in_nii_file.split('.')[0]
         self.nii_path = os.path.dirname(filename)
         self.is_fmri = False
         self.is_diffusion = False
-        self.in_vivo = False # default to phantom
+        self.in_vivo = in_vivo
         self.sfnr = 0
         # load the data here
         self.nii_load()
@@ -173,8 +173,8 @@ class FmriQc(MultiVolQc):
     '''
     methods specific to fmri (inherited from mriqc)
     '''
-    def __init__(self):
-        MultiVolQc.__init__()
+    def __init__(self,filename, in_vivo=False, run_report=True):
+        MultiVolQc.__init__(self,filename, in_vivo, run_report)
         self.is_fmri = True
         
     def remove_dummies(self, dummies):
@@ -261,6 +261,9 @@ class FmriQc(MultiVolQc):
             # mask at percentage of peak voxel intensity of mean image (from basic_stats)
             mask = self.vol_mask
         # mask is 1 for pixels within mask, NaN for those outside
+        self.vol_sfnr_whole = np.divide(self.vol_mean, self.vol_stdev, \
+                             out=np.zeros_like(self.vol_mean), \
+                             where=self.vol_stdev!=0)
         self.vol_mean = self.vol_mean * mask
         self.vol_stdev = self.vol_stdev * mask
         tmp_vol_mean = self.vol_mean
@@ -277,7 +280,7 @@ class FmriQc(MultiVolQc):
         sfnr = np.nanmean(np.ravel(self.vol_sfnr))
         vmean = np.nanmean(np.ravel(self.vol_mean))
         vstd = np.nanmean(np.ravel(self.vol_stdev))
-        print(sfnr,vmean,vstd)        
+        print('SFNR=' + str(sfnr) + '     mean=' + str(vmean) + '   stdev=' + str(vstd))        
         if savenii:
             # create nifti, using same affine transform as original
             nii_sfnr = nib.Nifti1Image(np.array(self.vol_sfnr, dtype=np.float64), self.affine)
@@ -295,12 +298,12 @@ class FmriQc(MultiVolQc):
         
         if self.in_vivo:
             drift = self.drift_correct(correct=True,mask=False, plot=True, savepng=True)
-            t_series = self.timeseries(mask=None, plot=True, savepng=True)
+            t_series = self.timeseries(mask=None, plot=False, savepng=True)
         else:
             voi_mask = np.array(self.voi((10,20,20)), dtype=np.float16)
             self.remove_dummies(20)
             drift = self.drift_correct(correct=True,mask=voi_mask, plot=True, savepng=True)
-            t_series = self.timeseries(mask=voi_mask, plot=True, savepng=True)
+            t_series = self.timeseries(mask=voi_mask, plot=False, savepng=True)
 
         if not self.in_vivo:
             # running calc_sfnr with mask overwrites values in self
@@ -344,6 +347,14 @@ class FmriQc(MultiVolQc):
                      +",{0:.2f}".format(mean_voi)\
                      +",{0:.2f}".format(sd_voi)\
                      +",{0:.2f}\n".format(drift)  )
+        print('sfnr_vol,mean_vol,sd_vol,sfnr_voi,mean_voi,sd_voi,drift\n')
+        print("{0:.2f}".format(sfnr_vol)\
+            +", {0:.2f}".format(mean_vol)\
+            +", {0:.2f}".format(sd_vol)\
+            +", {0:.2f}".format(sfnr_voi)\
+            +", {0:.2f}".format(mean_voi)\
+            +", {0:.2f}".format(sd_voi)\
+            +", {0:.2f}\n".format(drift) )
 
 class MultiVolDiffusion(MultiVolQc):
     '''
