@@ -630,7 +630,7 @@ class SpikeQc(MultiVolQc):
         # spike slices - those with a mean signal > 3 stdev above the slice mean
         all_slice_mean = np.mean(slice_mean)
         all_slice_std = np.std(slice_mean)
-        spike_slices = slice_mean > all_slice_mean + 1.5*all_slice_std
+        spike_slices = slice_mean > all_slice_mean + 3*all_slice_std
         vv = np.arange(0,spike_slices.shape[0])
         spike_slice_idx = vv[spike_slices]
         self.spike_slices = self.vol_data[spike_slices,:,:,:]
