@@ -651,7 +651,7 @@ class SpikeQc(MultiVolQc):
         for sl in range(plot_sl):
             rr = np.floor_divide(sl,plot_col_max)
             cc = np.mod(sl,plot_col_max)
-            ax[rr][cc].imshow(self.spike_slices[sl,0,:,:])
+            ax[rr][cc].imshow(self.spike_slices[sl,0,:,:], cmap='hsv')
             
 class FmriQcOverview():
     '''
