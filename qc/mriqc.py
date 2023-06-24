@@ -638,24 +638,25 @@ class SpikeQc(MultiVolQc):
         all_slice_std = np.std(slice_mean)
         # sorted
         is_spike = slice_mean_sorted > all_slice_mean + 3*all_slice_std
- 
-        fig1,ax1 = plt.subplots()
-        v=range(len(slice_mean))
-        ax1.plot(v,slice_mean)
-        #v_sp = v[is_spike]
-        #s_sp = slice_mean[is_spike]
-        #ax1.scatter(v_sp,s_sp)
-        ax1.set_xlabel('Volume No.')
-        ax1.set_ylabel('Mean signal')
-
-
         # only want the >3SD ones
         spike_idx = slice_mean_sort_idx[is_spike]
         # spike_slices contains image data with spikes, spikiest first
         self.spike_slices = self.vol_data[spike_idx,:,:,:]
+
+        # mean sig plot, with outliers
+        fig1,ax1 = plt.subplots()
+        v=range(len(slice_mean))
+        ax1.plot(v,slice_mean)
+        ax1.scatter(spike_idx,slice_mean[spike_idx],marker='o', color='red')
+        ax1.set_xlabel('Volume No.')
+        ax1.set_ylabel('Mean signal')
+
+        #plot histogram
+        plot_histogram(slice_mean)
+
+        # plot slice images
         plot_row_max=5
         plot_col_max=5
-         
         fig = plt.figure(figsize=(30/2.5, 30/2.5))
         ax = fig.subplots(plot_row_max,plot_col_max)
         for row in range(plot_row_max):
