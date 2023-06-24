@@ -624,17 +624,35 @@ class SpikeQc(MultiVolQc):
         Returns:
         '''
         
-        slice_mean = self.timeseries(mask=None, plot=True,savepng=True)
-        plot_histogram(slice_mean)
+        slice_mean = self.timeseries(mask=None, plot=False,savepng=True)
+        # indexes so slice, sorted in ascending slice_mean
+        # require this to be filtered so that it's abouve 3std, then used
+        # as fancy index to vol_data
+        # sort ascending as default - want descending
+        slice_mean_sort_idx = np.argsort(slice_mean)[::-1]
+        # sorted, descending
+        slice_mean_sorted = slice_mean[slice_mean_sort_idx]
         
         # spike slices - those with a mean signal > 3 stdev above the slice mean
         all_slice_mean = np.mean(slice_mean)
         all_slice_std = np.std(slice_mean)
-        spike_slices = slice_mean > all_slice_mean + 3*all_slice_std
-        vv = np.arange(0,spike_slices.shape[0])
-        spike_slice_idx = vv[spike_slices]
-        self.spike_slices = self.vol_data[spike_slices,:,:,:]
-        print(spike_slice_idx)
+        # sorted
+        is_spike = slice_mean_sorted > all_slice_mean + 3*all_slice_std
+ 
+        fig1,ax1 = plt.subplots()
+        v=range(len(slice_mean))
+        ax1.plot(v,slice_mean)
+        #v_sp = v[is_spike]
+        #s_sp = slice_mean[is_spike]
+        #ax1.scatter(v_sp,s_sp)
+        ax1.set_xlabel('Volume No.')
+        ax1.set_ylabel('Mean signal')
+
+
+        # only want the >3SD ones
+        spike_idx = slice_mean_sort_idx[is_spike]
+        # spike_slices contains image data with spikes, spikiest first
+        self.spike_slices = self.vol_data[spike_idx,:,:,:]
         plot_row_max=5
         plot_col_max=5
          
@@ -643,10 +661,10 @@ class SpikeQc(MultiVolQc):
         for row in range(plot_row_max):
             for col in range(plot_col_max):
                 ax[row][col].set_axis_off()
-        if spike_slice_idx.size > 15:
+        if spike_idx.size > 15:
             plot_sl=15
         else:
-            plot_sl=spike_slice_idx.size
+            plot_sl=spike_idx.size
         used_rows = np.floor_divide(plot_sl,plot_col_max)
         for sl in range(plot_sl):
             rr = np.floor_divide(sl,plot_col_max)
