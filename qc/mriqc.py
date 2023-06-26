@@ -852,7 +852,116 @@ def plot_histogram(vol, save_png=False, save_path = '.'):
     if save_png:
         fig.savefig(os.path.join(save_path, 'pixel_histogram.png'))
         
+def prep_data(scanner,root='/cubric/collab/108_QA'):
+    '''
+    mriqc.prep_data(
+        scanner: one of { '3TE', '3TW', '7T', 'connectom'}
+        root='/cubric/collab/108_QA': the path_root of QC data
+        )
         
+    Prepares QC data for analysis.  Requires the following folder structure:
+      .
+      ├── scanner
+      │   ├── fmriqc_2023
+      │   ├── fmriqc_glover
+      │   │   ├── proc     
+      │   │   │   ├── session1
+      │   │   │   │   ├──  nifti1
+      │   │   │   │   └──  report1          
+      │   │   │   └── session2
+      │   │   │       ├──  nifti2
+      │   │   │       └──  report2  
+      │   │   └── summary                  
+      │   ├── nifti
+      │   │   ├── session1
+      │   │   │   ├──  nifti1
+      │   │   │   └──  nifti2          
+      │   │   └── session2 
+      │   │       ├──  nifti1
+      │   │       └──  nifti2                   
+      │   ├── raw
+      │   │   ├──  session1
+      │   │   └──  session2    
+      │   ├── spike_2017
+      │   └── spike_2023
+  
+    Session directories should be downloaded by Download Images on XNAT with 
+    'simplify directory struture' OFF.
+    e.g.
+    ├── 23_05_24-15_12_01-DST-1_3_12_2_1107_5_2_34_18984
+│   └── scans
+│       ├── 1-localizer_gradiso
+│       ├── 2-gre_2dms_coilcheck
+│       ├── 3-gre_2dms_coilcheck
+│       ├── 4-spike_readLR
+│       ├── 5-spike_readAP
+│       ├── 6-spike_readHF
+│       ├── 7-QC_MB_GRE_EPI_FA15_Tx220V_SBRef
+│       └── 8-QC_MB_GRE_EPI_FA15_Tx220V
+
+    
+    Does the following:
+        1) look through all root/scanner/raw for a session folder
+        2) check whether session has nifti data in root/scanner/nifti
+        3) if yes - skip
+           if no  - run dcm2niix (linux only)
+        4) move niftis to root/scanner/qctype/proc/nifti or    
+    
+    
+    Parameters
+    ----------
+    
+        
+    Returns
+    -------
+    None.
+
+    '''
+    import shutil
+    import subprocess
+    
+    all_scanners = ['3TE', '3TW', '7T', 'connectom']
+    if scanner not in all_scanners:
+        print('!! ERROR: ' + scanner +' is not one of ')
+        print([s for s in all_scanners])
+        return
+    
+    dt = os.path.join(root,scanner) #top directory
+    dr = os.path.join(dt, 'raw') #raw dir
+    dn = os.path.join(dt, 'nifti') #nifti dir
+    print(dt,dr,dn)
+    sessr = []         #list of sess
+    for f in os.listdir(dr):
+        if '-1_3_12_2_1107_5_2_' in f:
+            sessr.append(f)
+    
+    sessn = []
+    for ff in os.listdir(dn):
+        if '-1_3_12_2_1107_5_2_' in ff:
+            sessn.append(ff)
+    
+    # check all session directories
+    for s in sessr:
+        print(s)
+        print(sessn)
+        # check that there isn't a matching session in nifti directory
+        # if not, do dicom conversion, and move resulting files to nifti dir
+        if s not in sessn:
+            print('no ' + s + ' in nifti')
+            spath = os.path.join(dr,s)
+            npath = os.path.join(dn,s)
+            subprocess.run(['echo','/cubric/software/bin/dcm2niix', '-f', '%i_%s_%d', spath])
+            subprocess.run(['/cubric/software/bin/dcm2niix', '-f', '%i_%s_%d', spath])
+            os.mkdir(npath)
+            fn = [ f for f in os.listdir(spath) if 'nii' in f ]
+            print(fn)
+            for niftifile in fn:
+                shutil.move(os.path.join(spath,niftifile), npath)       
+            fj = [ f2 for f2 in os.listdir(spath) if 'json' in f2 ]
+            for jsonfile in fj:
+                shutil.move(os.path.join(spath, jsonfile), npath)   
+        
+    
 
 
 
