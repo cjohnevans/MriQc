@@ -960,7 +960,33 @@ def prep_data(scanner,root='/cubric/collab/108_QA'):
             fj = [ f2 for f2 in os.listdir(spath) if 'json' in f2 ]
             for jsonfile in fj:
                 shutil.move(os.path.join(spath, jsonfile), npath)   
-        
+    
+    # need to update nifti list, as may have been added to.
+    sessniinew = []
+    for ff in os.listdir(dn):
+        if '-1_3_12_2_1107_5_2_' in ff:
+            sessniinew.append(ff)
+            
+    # then check nifti directory and move to relevant qc directory
+    for sn in sessniinew:
+        snpath = os.path.join(dn,sn)
+        niiscans = os.listdir(snpath)
+        for nii in niiscans:
+            # fmriqc_2023
+            if ('QC_MB_GRE_EPI' in nii) and ('.nii' in nii) and ('SBRef' not in nii):
+                print(nii)
+                print('!!!!!!!!!!!!!! fmriqc_2023 !!!!!!!!!!!!')
+            # spike_2023
+            if ('spike_read' in nii) and ('.nii' in nii):
+                print(nii)
+                print('!!!!!!!!!!!!!! spike_2023 !!!!!!!!!!!!')
+            if ('GloverGSQAP' in nii) and ('.nii' in nii):
+                print(nii)
+                print('!!!!!!!!!!!!!! fmriqc_2017 !!!!!!!!!!!!')    
+            if ('EPIspike' in nii) and ('.nii' in nii):
+                print(nii)
+                print('!!!!!!!!!!!!!! spike_2017 !!!!!!!!!!!!')
+
     
 
 
