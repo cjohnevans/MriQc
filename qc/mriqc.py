@@ -650,6 +650,7 @@ class SpikeQc(MultiVolQc):
         ax1.scatter(spike_idx,slice_mean[spike_idx],marker='o', color='red')
         ax1.set_xlabel('Volume No.')
         ax1.set_ylabel('Mean signal')
+        ax1.set_title(self.in_nii_file_root)
 
         #plot histogram
         plot_histogram(slice_mean)
@@ -929,7 +930,6 @@ def prep_data(scanner,root='/cubric/collab/108_QA'):
     dt = os.path.join(root,scanner) #top directory
     dr = os.path.join(dt, 'raw') #raw dir
     dn = os.path.join(dt, 'nifti') #nifti dir
-    print(dt,dr,dn)
     sessr = []         #list of sess
     for f in os.listdir(dr):
         if '-1_3_12_2_1107_5_2_' in f:
@@ -942,12 +942,11 @@ def prep_data(scanner,root='/cubric/collab/108_QA'):
     
     # check all session directories
     for s in sessr:
-        print(s)
-        print(sessn)
+        print('\n\n\n      ###  ' + s + '  ###\n\n\n')
         # check that there isn't a matching session in nifti directory
         # if not, do dicom conversion, and move resulting files to nifti dir
         if s not in sessn:
-            print('no ' + s + ' in nifti')
+            print('No niftis for ' + s + '. Running dcm2niix.')
             spath = os.path.join(dr,s)
             npath = os.path.join(dn,s)
             subprocess.run(['echo','/cubric/software/bin/dcm2niix', '-f', '%i_%s_%d', spath])
@@ -959,7 +958,10 @@ def prep_data(scanner,root='/cubric/collab/108_QA'):
                 shutil.move(os.path.join(spath,niftifile), npath)       
             fj = [ f2 for f2 in os.listdir(spath) if 'json' in f2 ]
             for jsonfile in fj:
-                shutil.move(os.path.join(spath, jsonfile), npath)   
+                shutil.move(os.path.join(spath, jsonfile), npath)
+        else:
+            print('Niftis already exist for '+ s + '. Skipping.')
+           
     
     # need to update nifti list, as may have been added to.
     sessniinew = []
@@ -968,24 +970,30 @@ def prep_data(scanner,root='/cubric/collab/108_QA'):
             sessniinew.append(ff)
             
     # then check nifti directory and move to relevant qc directory
+    p_fmriqc_2023 = os.path.join(root,scanner,'fmriqc_2023/proc')
+    p_fmriqc_glover= os.path.join(root, scanner, 'fmriqc_glover/proc')
+    p_spike_2023 = os.path.join(root, scanner, 'spike_2023/proc')
+    p_spike_2017 = os.path.join(root, scanner, 'spike_2017/proc')
+    
     for sn in sessniinew:
+        print('Sorting niftis for ' + sn)
         snpath = os.path.join(dn,sn)
         niiscans = os.listdir(snpath)
         for nii in niiscans:
             # fmriqc_2023
             if ('QC_MB_GRE_EPI' in nii) and ('.nii' in nii) and ('SBRef' not in nii):
-                print(nii)
-                print('!!!!!!!!!!!!!! fmriqc_2023 !!!!!!!!!!!!')
+                print(nii + ' >> ' + p_fmriqc_2023)
+                shutil.move(os.path.join(snpath,nii), p_fmriqc_2023)
             # spike_2023
             if ('spike_read' in nii) and ('.nii' in nii):
-                print(nii)
-                print('!!!!!!!!!!!!!! spike_2023 !!!!!!!!!!!!')
+                print(nii + ' >> ' + p_spike_2023)
+                shutil.move(os.path.join(snpath,nii), p_spike_2023)
             if ('GloverGSQAP' in nii) and ('.nii' in nii):
-                print(nii)
-                print('!!!!!!!!!!!!!! fmriqc_2017 !!!!!!!!!!!!')    
+                print(nii + ' >> ' + p_fmriqc_glover) 
+                shutil.move(os.path.join(snpath,nii), p_fmriqc_glover)
             if ('EPIspike' in nii) and ('.nii' in nii):
-                print(nii)
-                print('!!!!!!!!!!!!!! spike_2017 !!!!!!!!!!!!')
+                print(nii + ' >> ' + p_spike_2017)
+                shutil.move(os.path.join(snpath,nii), p_spike_2017)
 
     
 
