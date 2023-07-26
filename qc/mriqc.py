@@ -42,14 +42,20 @@ class BasicQc:
             return None
         
         self.im_shape = im1in.shape
+        print(self.im_shape)
         
-        # reduce to 2D here..
-        self.im1 = im1in[:,:,0]
-        self.im2 = im2in[:,:,0]
-
+        if self.im_shape[-1] != 1: #is a 3D nii
+            # take midpoint in 
+            mid_slice = int(np.floor( self.im_shape[-1] / 2 ))
+            
+        else:
+            # it's 2D
+            mid_slice = 0
+        print(mid_slice)
+        self.im1 = im1in[:,:,mid_slice]
+        self.im2 = im2in[:,:,mid_slice]
         
         self.locate_phantom(self.im1)
-        print(self.im_centre, self.ph_centre, self.ph_radius)
 
         # NEMA recommends using mask that's 75% of the area of the visible 
         # phantom, so that's sqrt(0.75) of the radius
@@ -129,7 +135,8 @@ class BasicQc:
         mask_img = mask*0.5*np.max(np.max(self.im1))
         fig3 = plt.figure()
         ax = fig3.subplots(1,1)       
-        ax.imshow(mask_img+self.im1)
+#        ax.imshow(mask_img+self.im1)
+        ax.imshow(self.im1)
         ax.set_title('mask')
         return mask
 
