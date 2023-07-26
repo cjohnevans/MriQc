@@ -5,6 +5,123 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import warnings
 
+class BasicQc:
+    '''
+    BasicQc: methods for elementary QC calculations
+    '''
+    def snr_nema(self, f1, f2):
+        """
+        snr_nema(nii1,
+                 nii2)
+
+        Orientation:  axis0 is the horizontal direction (x) on an imshow
+           axis1 is the vertical direction (y)
+
+        Parameters
+        ----------
+        f1 : string
+            path to first acquisition used in SNR calculation.
+        f2 : string
+            path to first acquisition used in SNR calculation.
+
+        Returns
+        -------
+        None.
+
+        """   
+        nii1 = nib.load(f1)
+        nii2 = nib.load(f2)
+
+        im1in = nii1.get_fdata(dtype=np.float16)
+        im2in = nii2.get_fdata(dtype=np.float16)
+        if im1in.shape[0] != im2in.shape[0]:
+            return None
+        if im1in.shape[1] != im2in.shape[1]:
+            return None
+        if im1in.ndim != im2in.ndim:
+            return None
+        
+        self.im_shape = im1in.shape
+        
+        # reduce to 2D here..
+        self.im1 = im1in
+        self.im2 = im2in
+        # subtraction for noise calculation
+        self.im_subtract = self.im1 - self.im2
+        
+        self.locate_phantom(self.im1)
+        print(self.im_centre, self.ph_centre, self.ph_radius)
+
+        self.mask_phantom()
+
+        fig = plt.figure(figsize=(10,5))
+        ax = fig.subplots(2,2)
+        ax[0][0].imshow(self.im1,cmap='jet')
+        ax[0][1].imshow(self.im2,cmap='jet')
+        ax[1][0].imshow(self.im_subtract,cmap='jet')
+        
+        fig2 = plt.figure(figsize=(10,5))
+        ax2 = fig2.subplots(2,2)
+        ax2[0][0].plot(self.im1[self.im_centre[1],:])  # dim0 in blue
+        ax2[0][0].plot(self.im1[:,self.im_centre[0]])  # dim1 in orange
+        
+    def locate_phantom(self,im1):
+        """
+        locate_phantom(im1)
+
+        Parameters
+        ----------
+        im1 : image data
+            DESCRIPTION.
+
+        Returns
+        -------
+        (image_centre_x, image_centre_y), (phantom_centre_x, phantom_centre_y).
+
+        """
+        # find image centre
+        self.im_centre = [int(i/2) for i in im1.shape]
+        # find phantom centre, use im1
+        # first get the max extent of the phantom,                 
+        maxx = np.ravel(np.max(im1,axis=0))
+        maxy = np.ravel(np.max(im1,axis=1))
+        
+        # then find the edges ...
+        diffx = np.absolute(np.ravel(np.diff(maxx)))
+        diffy = np.absolute(np.ravel(np.diff(maxy)))
+        xedge1 = np.argmax(diffx[0:self.im_centre[1]])
+        xedge2 = self.im_centre[1]+np.argmax(diffx[ (self.im_centre[1]+1):] )
+        # ... to get the centre
+        xctr = (xedge1 + xedge2)/2
+        xwidth = xedge2 - xedge1
+        yedge1 = np.argmax(diffy[0:self.im_centre[0]])
+        yedge2 = self.im_centre[0]+np.argmax(diffy[ (self.im_centre[0]+1):] )        
+        yctr = (yedge1 + yedge2)/2
+        ywidth = yedge2 - yedge1
+        self.ph_centre = (xctr,yctr)
+        # calc minimum expected radius
+        print(xwidth,ywidth)
+        self.ph_radius = np.min([xwidth, ywidth])/2
+    
+    def mask_phantom(self):
+        xmin = int(-self.ph_centre[0])
+        xmax = int(self.im_shape[0] - self.ph_centre[0])
+        ymin = int(-self.ph_centre[1])
+        ymax = int(self.im_shape[1] - self.ph_centre[1])
+        print(xmin, xmax,ymin, ymax)
+        image_grid = np.meshgrid(range(xmin,xmax), range(ymin,ymax))
+        fig3 = plt.figure()
+        ax = fig3.subplots(1,1)
+        x2 = np.power(image_grid[0],2)
+        y2 = np.power(image_grid[1],2)
+        fig3 = plt.figure()
+        ax = fig3.subplots(1,2)
+        #ax[0].plot(x2[0])
+        #ax[0].plot(y2[:,0])
+        ax[0].imshow(self.im1)
+        ax[1].imshow(x2+y2)
+
+
 # MultiVolQc is generic for checking multi-volume MR data (e.g. fmri, qmt)
 class MultiVolQc:
     '''
