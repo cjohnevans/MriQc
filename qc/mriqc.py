@@ -14,8 +14,11 @@ class BasicQc:
         snr_nema(nii1,
                  nii2)
 
-        Orientation:  axis0 is the horizontal direction (x) on an imshow
-           axis1 is the vertical direction (y)
+        Orientation:  axis 0 is the vertical direction (y) 
+                      axis 1 is the horizontal direction (x) 
+                      both for the referencing of the array and on imshow
+                      with im[axis0,axis1]
+
 
         Parameters
         ----------
@@ -100,38 +103,42 @@ class BasicQc:
         # find image centre
         self.im_centre = [int(i/2) for i in im1.shape]
         # find phantom centre, use im1
-        # first get the max extent of the phantom,                 
-        maxx = np.ravel(np.max(im1,axis=0))
-        maxy = np.ravel(np.max(im1,axis=1))
+        # first get the max extent of the phantom,  
+        # max collapses along the axis defined by axis               
+        col_max = np.ravel(np.max(im1,axis=0)) # collapse 
+        row_max = np.ravel(np.max(im1,axis=1))
         
         # then find the edges ...
-        diffx = np.absolute(np.ravel(np.diff(maxx)))
-        diffy = np.absolute(np.ravel(np.diff(maxy)))
-        xedge1 = np.argmax(diffx[0:self.im_centre[1]])
-        xedge2 = self.im_centre[1]+np.argmax(diffx[ (self.im_centre[1]+1):] )
+        col_diff = np.absolute(np.ravel(np.diff(col_max)))
+        row_diff = np.absolute(np.ravel(np.diff(row_max)))
+        col_edge1 = np.argmax(col_diff[0:self.im_centre[1]])
+        col_edge2 = self.im_centre[1]+np.argmax(col_diff[ (self.im_centre[1]+1):] )
         # ... to get the centre
-        xctr = (xedge1 + xedge2)/2
-        xwidth = xedge2 - xedge1
-        yedge1 = np.argmax(diffy[0:self.im_centre[0]])
-        yedge2 = self.im_centre[0]+np.argmax(diffy[ (self.im_centre[0]+1):] )        
-        yctr = (yedge1 + yedge2)/2
-        ywidth = yedge2 - yedge1
-        self.ph_centre = (xctr,yctr)
+        col_centre = (col_edge1 + col_edge2)/2
+        col_width = col_edge2 - col_edge1
+        row_edge1 = np.argmax(row_diff[0:self.im_centre[0]])
+        row_edge2 = self.im_centre[0]+np.argmax(row_diff[ (self.im_centre[0]+1):] )        
+        row_centre = (row_edge1 + row_edge2)/2
+        row_width = row_edge2 - row_edge1
+        self.ph_centre = (row_centre,col_centre)
         # calc minimum expected radius
-        print(xwidth,ywidth)
-        self.ph_radius = np.min([xwidth, ywidth])/2
+        print(row_width,col_width)
+        self.ph_radius = np.min([row_width, col_width])/2
     
     def mask_phantom(self, R_mask):
-        xmin = int(-self.ph_centre[0])
-        xmax = int(self.im_shape[0] - self.ph_centre[0])
-        ymin = int(-self.ph_centre[1])
-        ymax = int(self.im_shape[1] - self.ph_centre[1])
+        row_min = int(-self.ph_centre[0])
+        row_max = int(self.im_shape[0] - self.ph_centre[0])
+        col_min = int(-self.ph_centre[1])
+        col_max = int(self.im_shape[1] - self.ph_centre[1])
 
         # work out x^2+y^2 <= R^2 using a meshgrid
-        image_grid = np.meshgrid(range(xmin,xmax+1), range(ymin,ymax+1))
-        x2 = np.power(image_grid[0],2)
-        y2 = np.power(image_grid[1],2)
-        mask = x2+y2 < np.power(R_mask,2)
+        # watch meshgrid introduces a rotation
+        col_grid, row_grid = np.meshgrid(range(col_min,col_max+1), range(row_min,row_max+1))
+        col_grid2 = col_grid[0:self.im1.shape[0], 0:self.im1.shape[1]]
+        row_grid2 = row_grid[0:self.im1.shape[0], 0:self.im1.shape[1]]
+        col_sqr = np.power(col_grid2,2)
+        row_sqr = np.power(row_grid2,2)
+        mask = (col_sqr + row_sqr) < np.power(R_mask,2)
         mask_img = mask*0.5*np.max(np.max(self.im1))
         fig3 = plt.figure()
         ax = fig3.subplots(1,1)       
