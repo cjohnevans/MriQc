@@ -43,10 +43,7 @@ class BasicQc:
             return None
         if im1in.ndim != im2in.ndim:
             return None
-        
-        self.im_shape = im1in.shape
-        print(self.im_shape)
-        
+        self.im_shape = im1in.shape        
         if self.im_shape[-1] != 1: #is a 3D nii
             # take midpoint in 
             mid_slice = int(np.floor( self.im_shape[-1] / 2 ))
@@ -54,7 +51,6 @@ class BasicQc:
         else:
             # it's 2D
             mid_slice = 0
-        print(mid_slice)
         self.im1 = im1in[:,:,mid_slice]
         self.im2 = im2in[:,:,mid_slice]
         
@@ -122,7 +118,6 @@ class BasicQc:
         row_width = row_edge2 - row_edge1
         self.ph_centre = (row_centre,col_centre)
         # calc minimum expected radius
-        print(row_width,col_width)
         self.ph_radius = np.min([row_width, col_width])/2
     
     def mask_phantom(self, R_mask):
@@ -139,11 +134,10 @@ class BasicQc:
         col_sqr = np.power(col_grid2,2)
         row_sqr = np.power(row_grid2,2)
         mask = (col_sqr + row_sqr) < np.power(R_mask,2)
-        mask_img = mask*0.5*np.max(np.max(self.im1))
+        mask_img = mask*np.max(np.max(self.im1))
         fig3 = plt.figure()
         ax = fig3.subplots(1,1)       
-#        ax.imshow(mask_img+self.im1)
-        ax.imshow(self.im1)
+        ax.imshow(mask_img+self.im1)
         ax.set_title('mask')
         return mask
 
