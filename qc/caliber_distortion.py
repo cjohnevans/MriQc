@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-Spyder Editor
-
-This is a temporary script file.
+caliber_distortion analysis
+CJE 10/8/2023
 """
 
 import pandas as pd
@@ -159,3 +158,9 @@ def analyse_hyperfine(dist_file):
     print('Iso shift (B0)   SI: {:.3f} mm'.format(si[1]))
           
     return [study, series, d2, grad_scaling]
+
+
+class CaliberDistortion():
+    def __init__(self):
+        self.gradient_scaling = {}
+        self.iso_shift = {}
