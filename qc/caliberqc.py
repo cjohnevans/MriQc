@@ -211,9 +211,11 @@ class CaliberDistortion():
         #self.plot_measured()
         self.plot_stats()
     
-        self.grad_scale.show()
+        #self.grad_scale.show()
         self.grad_scale_pct.show()
         self.iso_shift.show()
+        self.nonlinearity_peak.show()
+        self.nonlinearity_rms.show()
         
 
 
