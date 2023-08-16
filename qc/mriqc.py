@@ -5,6 +5,142 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import warnings
 
+class BasicQc:
+    '''
+    BasicQc: methods for elementary QC calculations
+    '''
+    def snr_nema(self, f1, f2):
+        """
+        snr_nema(nii1,
+                 nii2)
+
+        Orientation:  axis 0 is the vertical direction (y) 
+                      axis 1 is the horizontal direction (x) 
+                      both for the referencing of the array and on imshow
+                      with im[axis0,axis1]
+
+
+        Parameters
+        ----------
+        f1 : string
+            path to first acquisition used in SNR calculation.
+        f2 : string
+            path to first acquisition used in SNR calculation.
+
+        Returns
+        -------
+        None.
+
+        """   
+        nii1 = nib.load(f1)
+        nii2 = nib.load(f2)
+
+        im1in = nii1.get_fdata(dtype=np.float64)
+        im2in = nii2.get_fdata(dtype=np.float64)
+        if im1in.shape[0] != im2in.shape[0]:
+            return None
+        if im1in.shape[1] != im2in.shape[1]:
+            return None
+        if im1in.ndim != im2in.ndim:
+            return None
+        self.im_shape = im1in.shape        
+        if self.im_shape[-1] != 1: #is a 3D nii
+            # take midpoint in 
+            mid_slice = int(np.floor( self.im_shape[-1] / 2 ))
+            
+        else:
+            # it's 2D
+            mid_slice = 0
+        self.im1 = im1in[:,:,mid_slice]
+        self.im2 = im2in[:,:,mid_slice]
+        
+        self.locate_phantom(self.im1)
+
+        # NEMA recommends using mask that's 75% of the area of the visible 
+        # phantom, so that's sqrt(0.75) of the radius
+        mask_radius = np.power(0.75,0.5) * self.ph_radius
+        snr_mask = self.mask_phantom(mask_radius)
+        
+        im1_im2 = 0.5 * (self.im1 + self.im2)
+        mean_signal = np.mean(im1_im2[snr_mask==True])
+        # subtraction for noise calculation
+        self.im_subtract = self.im1 - self.im2
+        im_sub_mask = self.im_subtract[snr_mask==True] #unravelled
+        std_signal = np.std(im_sub_mask)
+        self.snr = np.power(2, 0.5) * mean_signal / std_signal
+        print('SNR (NEMA) {:.6} '.format(self.snr))
+
+        fig = plt.figure(figsize=(10,5))
+        ax = fig.subplots(2,2)
+        ax[0][0].imshow(self.im1,cmap='jet')
+        ax[0][1].imshow(self.im2,cmap='jet')
+        ax[1][0].imshow(self.im_subtract*snr_mask ,cmap='jet')       
+        ax[1][1].plot(self.im1[self.im_centre[1],:])  # dim0 in blue
+        ax[1][1].plot(self.im1[:,self.im_centre[0]])  # dim1 in orange
+        #ax[1][1].plot(im_sub_mask)
+        
+
+        
+        
+    def locate_phantom(self,im1):
+        """
+        locate_phantom(im1)
+
+        Parameters
+        ----------
+        im1 : image data
+            DESCRIPTION.
+
+        Returns
+        -------
+        (image_centre_x, image_centre_y), (phantom_centre_x, phantom_centre_y).
+
+        """
+        # find image centre
+        self.im_centre = [int(i/2) for i in im1.shape]
+        # find phantom centre, use im1
+        # first get the max extent of the phantom,  
+        # max collapses along the axis defined by axis               
+        col_max = np.ravel(np.max(im1,axis=0)) # collapse 
+        row_max = np.ravel(np.max(im1,axis=1))
+        
+        # then find the edges ...
+        col_diff = np.absolute(np.ravel(np.diff(col_max)))
+        row_diff = np.absolute(np.ravel(np.diff(row_max)))
+        col_edge1 = np.argmax(col_diff[0:self.im_centre[1]])
+        col_edge2 = self.im_centre[1]+np.argmax(col_diff[ (self.im_centre[1]+1):] )
+        # ... to get the centre
+        col_centre = (col_edge1 + col_edge2)/2
+        col_width = col_edge2 - col_edge1
+        row_edge1 = np.argmax(row_diff[0:self.im_centre[0]])
+        row_edge2 = self.im_centre[0]+np.argmax(row_diff[ (self.im_centre[0]+1):] )        
+        row_centre = (row_edge1 + row_edge2)/2
+        row_width = row_edge2 - row_edge1
+        self.ph_centre = (row_centre,col_centre)
+        # calc minimum expected radius
+        self.ph_radius = np.min([row_width, col_width])/2
+    
+    def mask_phantom(self, R_mask):
+        row_min = int(-self.ph_centre[0])
+        row_max = int(self.im_shape[0] - self.ph_centre[0])
+        col_min = int(-self.ph_centre[1])
+        col_max = int(self.im_shape[1] - self.ph_centre[1])
+
+        # work out x^2+y^2 <= R^2 using a meshgrid
+        # watch meshgrid introduces a rotation
+        col_grid, row_grid = np.meshgrid(range(col_min,col_max+1), range(row_min,row_max+1))
+        col_grid2 = col_grid[0:self.im1.shape[0], 0:self.im1.shape[1]]
+        row_grid2 = row_grid[0:self.im1.shape[0], 0:self.im1.shape[1]]
+        col_sqr = np.power(col_grid2,2)
+        row_sqr = np.power(row_grid2,2)
+        mask = (col_sqr + row_sqr) < np.power(R_mask,2)
+        mask_img = mask*np.max(np.max(self.im1))
+        fig3 = plt.figure()
+        ax = fig3.subplots(1,1)       
+        ax.imshow(mask_img+self.im1)
+        ax.set_title('mask')
+        return mask
+
 # MultiVolQc is generic for checking multi-volume MR data (e.g. fmri, qmt)
 class MultiVolQc:
     '''
