@@ -79,10 +79,21 @@ def data_unzip():
         fls = os.listdir(p)
         for ff in fls:
             if 'XNAT' in ff[0:4] and '.zip' in ff[-4:]:
-                zip_dir = os.path.join(p,ff[:-4])
                 ff_path = os.path.join(p,ff)
-                print('Unzipping ' + ff_path + ' to ' + zip_dir)
-                subprocess.run(['unzip', '-q', '-d', zip_dir, ff_path])
+                # data structure is dir_xnat_sess/dir_scan_sess/scans/
+                dir_xnat_sess = os.path.join(p,ff[:-4])
+                print('Unzipping ' + ff_path + ' to ' + dir_xnat_sess)
+                subprocess.run(['unzip', '-q', '-d', dir_xnat_sess, ff_path])
+                dir_scan_sess = os.path.join(dir_xnat_sess,os.listdir(dir_xnat_sess)[0],'scans')
+                print('Running dcm2niix')
+                subprocess.run(['dcm2niix', '-f', '%i_%s_%d',dir_scan_sess])
+                nii_json_files = []
+                #nifti_dir = os.path.join()
+                for fff in os.listdir(dir_scan_sess):
+                    if '.nii' in fff or '.json' in fff:
+                        print(os.path.join(dir_scan_sess, fff))
+                        # NEED TO WORK OUT DIRECOTORY STRUCTURE FOR NIFTIS - all in one dir?
+                        #os.rename(os.path.join(dir_scan_sess, fff), ) 
 
 #update_download_list()
 #xnat_download()
