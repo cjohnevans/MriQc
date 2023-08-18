@@ -11,7 +11,7 @@ Created on Wed Aug 16 14:37:20 2023
 
 import xnat
 import subprocess
-import os
+import os, shutil
 
 data_path = '/cubric/collab/108_QA'
 download_list = os.path.join(data_path, 'xnat_download_list.txt')
@@ -27,7 +27,7 @@ def update_download_list():
     exp_done = []
     print('Checking for downloaded data in ' + data_path)
     for qd in qcsubj.keys():
-        qdir = os.path.join(data_path,qd,'raw')
+        qdir = os.path.join(data_path,qd,'nifti')
         list1 = os.listdir(qdir)
     
         for l in list1:
@@ -53,48 +53,82 @@ def xnat_download():
     with xnat.connect('https://xnat.cubric.cf.ac.uk') as session:
         subj = session.projects['108_QA2023'].subjects
         for s in subj:
-            for (q1, q2) in qcsubj.items():
-                if q2 in s:
-                    subj_id = subj[s].label
-                    qc_exp=subj[s].experiments
+            for (qc_subj, qc_subj_xn) in qcsubj.items():
+                if qc_subj_xn in s:
+                    subj_id = subj[s].label  # subj_id is QA3TM etc.. 
+                    qc_exp = subj[s].experiments
                     print('Found ' + str(len(qc_exp)) + ' sessions on XNAT for ' + subj_id)
                     # e is all qc experiments for a given subject (=scanner)
                     exp_to_download = []
+                    
+                    # set up zip path for this scanner (subject)
+                    dir_zip = os.path.join(data_path, subj_id, 'zip')
+                    if not os.path.isdir(dir_zip):
+                        os.mkdir(dir_zip)                     
+                    
                     for e in qc_exp:
+                        # check xnat experiement ids against those previously downloaded
                         if e not in exp_downloaded:
-                            raw_path = os.path.join(data_path, subj_id, 'raw', e + '.zip')
                             print('Session ' + e + ' is new.')
                             exp_to_download.append(e)
-                    print(str(len(exp_to_download)) + ' new session will be downloaded')
+                            
+                    print(str(len(exp_to_download)) + ' new session(s) will be downloaded')
                     for ed in exp_to_download:
-                        print('Downloading ' + e + ' to ' + raw_path)
-                        qc_exp[e].download(raw_path)                                               
+                        zip_path = os.path.join(dir_zip, ed + '.zip')
+                        print('Downloading ' + ed + ' to ' + zip_path)
+                        qc_exp[ed].download(zip_path)                                               
     session.disconnect()
 
 def data_unzip():
     # phase 3: unzip data to /cubric/collab/108_QA/SCANNER/raw/XNATID/SESSIONID
     print('\nChecking for XNAT zip files in ' + data_path)
-    for q1, q2 in qcsubj.items():
-        p = os.path.join(data_path,q1,'raw')
-        fls = os.listdir(p)
+    for ppt, ppt_xn in qcsubj.items():
+        #set up temporary dicom directory (scanner level)
+        dicom_temp = os.path.join(data_path,ppt,'dicom_temp')
+        if not os.path.isdir(dicom_temp):
+            os.mkdir(dicom_temp)
+            
+        # set up temporary nifti directory (scanner level)    
+        nifti_temp = os.path.join(data_path, ppt,'nifti')
+        if not os.path.isdir(nifti_temp):
+            os.mkdir(nifti_temp)        
+        # directory of downloaded zip files
+        dir_zip = os.path.join(data_path, ppt, 'zip')
+        fls = os.listdir(dir_zip)
         for ff in fls:
             if 'XNAT' in ff[0:4] and '.zip' in ff[-4:]:
-                ff_path = os.path.join(p,ff)
+                exp_id = ff[:-4]
+                zip_file = os.path.join(dir_zip,ff)
                 # data structure is dir_xnat_sess/dir_scan_sess/scans/
-                dir_xnat_sess = os.path.join(p,ff[:-4])
-                print('Unzipping ' + ff_path + ' to ' + dir_xnat_sess)
-                subprocess.run(['unzip', '-q', '-d', dir_xnat_sess, ff_path])
+                dir_xnat_sess = os.path.join(dicom_temp,ff[:-4])
+                
+                # skip if unpacked directory exists
+                if os.path.isdir(dir_xnat_sess): 
+                    print(dir_xnat_sess + ' exists.  Skipping unzip')
+                else:
+                    print('Unzipping ' + zip_file + ' to ' + dir_xnat_sess)
+                    sb = subprocess.run(['unzip', '-q', '-d', dir_xnat_sess, zip_file])
+                
+                # get launch dir & output dir for dcm2niix
                 dir_scan_sess = os.path.join(dir_xnat_sess,os.listdir(dir_xnat_sess)[0],'scans')
-                print('Running dcm2niix')
-                subprocess.run(['dcm2niix', '-f', '%i_%s_%d',dir_scan_sess])
-                nii_json_files = []
-                #nifti_dir = os.path.join()
-                for fff in os.listdir(dir_scan_sess):
-                    if '.nii' in fff or '.json' in fff:
-                        print(os.path.join(dir_scan_sess, fff))
-                        # NEED TO WORK OUT DIRECOTORY STRUCTURE FOR NIFTIS - all in one dir?
-                        #os.rename(os.path.join(dir_scan_sess, fff), ) 
+                dir_scan_nifti = os.path.join(nifti_temp, exp_id)
+                
+                # skip if nifti directory exists
+                if os.path.isdir(dir_scan_nifti):
+                    print(dir_scan_nifti + ' exists.  Skipping dcm2niix')
+                else:   
+                    os.mkdir(dir_scan_nifti)
+                    print('Running dcm2niix and outputing to  ' + dir_scan_nifti)
+                    sb = subprocess.run(['dcm2niix', \
+                                     '-f', '%i_%s_%d',\
+                                     '-o', dir_scan_nifti,
+                                     dir_scan_sess] , \
+                                     stdout=subprocess.DEVNULL)
+        # tidy up temp directories
+        print('Tidying temporary directories' + dicom_temp + ' and ' + dir_zip)
+        shutil.rmtree(dicom_temp)
+        shutil.rmtree(dir_zip)
 
 #update_download_list()
-#xnat_download()
+xnat_download()
 data_unzip()

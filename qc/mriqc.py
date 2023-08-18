@@ -146,7 +146,7 @@ class MultiVolQc:
     '''
     MultiVolQc class: data and methods for dealing with multi-volume MRI data
     '''
-    def __init__(self,filename, in_vivo=False, run_report=False):
+    def __init__(self,filename, in_vivo=False, run_report=False, report_path=False):
         self.in_nii_file = os.path.basename(filename)
         self.in_nii_file_root = self.in_nii_file.split('.')[0]
         self.nii_path = os.path.dirname(filename)
@@ -157,7 +157,10 @@ class MultiVolQc:
         # load the data here
         self.nii_load()
         self.basic_stats()
-        self.report_path = os.path.join(self.nii_path, self.in_nii_file_root +'_report')
+        if report_path == False:
+            self.report_path = os.path.join(self.nii_path, self.in_nii_file_root +'_report')
+        else:
+            self.report_path = report_path
         if not os.path.exists(self.report_path):
             os.mkdir(self.report_path)
         if run_report:
@@ -312,8 +315,8 @@ class FmriQc(MultiVolQc):
     '''
     methods specific to fmri (inherited from mriqc)
     '''
-    def __init__(self,filename, in_vivo=False, run_report=True):
-        MultiVolQc.__init__(self,filename, in_vivo, run_report)
+    def __init__(self,filename, in_vivo=False, run_report=True, report_path=False):
+        MultiVolQc.__init__(self,filename, in_vivo, run_report, report_path)
         self.is_fmri = True
         
     def remove_dummies(self, dummies):
