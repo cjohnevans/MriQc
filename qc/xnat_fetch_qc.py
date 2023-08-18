@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-xnat_fetchqc.py
+xnat_fetch_qc.py
 
 Collect qc data from xnat project 108 using xnatpy
 Created on Wed Aug 16 14:37:20 2023
@@ -128,7 +128,26 @@ def data_unzip():
         print('Tidying temporary directories' + dicom_temp + ' and ' + dir_zip)
         shutil.rmtree(dicom_temp)
         shutil.rmtree(dir_zip)
+        
+def proc_fmriqc(analyse_all=False):
+    # set up paths
+    data_root = '/cubric/collab/108_QA'
+    scanners = ['QA7T', 'QA3TW', 'QA3TE', 'QA3TM']
+    nifti_path = []
+    report_path = []
+
+    for s in scanners:
+        nifti_path.append(os.path.join(data_root, s, 'nifti'))
+        report_path.append(os.path.join(data_root, s, 'fmriqc_2023/proc'))
+    print(nifti_path,report_path)
+    
+    
+    # work out which niftis have already been processed
+    fmriqc_names = ['GloverGSQAP.nii', 'Warmingup.nii']
+    
+    
 
 #update_download_list()
-xnat_download()
-data_unzip()
+#xnat_download()
+#data_unzip()
+proc_fmriqc()
