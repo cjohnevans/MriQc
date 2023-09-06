@@ -68,6 +68,7 @@ class BasicQc:
         im_sub_mask = self.im_subtract[snr_mask==True] #unravelled
         std_signal = np.std(im_sub_mask)
         self.snr = np.power(2, 0.5) * mean_signal / std_signal
+        self.mean_signal = mean_signal
         print('SNR (NEMA) {:.6} '.format(self.snr))
 
         fig = plt.figure(figsize=(10,5))
