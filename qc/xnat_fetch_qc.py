@@ -6,6 +6,9 @@ xnat_fetch_qc.py
 Collect qc data from xnat project 108 using xnatpy
 Created on Wed Aug 16 14:37:20 2023
 
+Set of functions to handle get data from XNAT and launch processing, with approiate directory structure
+
+
 @author: sapje1
 """
 
@@ -23,6 +26,19 @@ qcsubj = { 'QA7T' : 'XNAT_S06014',
         }
 
 def update_download_list():
+    """
+    update_download_list()
+    ----------------------
+    
+    Check data already present in DATA_PATH (global) and update file DOWNLOAD_LIST (global) with a set
+    of XNAT experiment IDs.  This is to be used by xnat_download() to grab only NEW data from XNAT.
+    It should be run before any other calls in this module.
+
+    Returns
+    -------
+    None.
+
+    """
     #regenerate list of downloaded datasets
     exp_done = []
     print('Checking for downloaded data in ' + data_path)
@@ -40,7 +56,22 @@ def update_download_list():
             f.write(line + '\n')
 
 def xnat_download():
-    # phase 2: download new zip files from XNAT
+    """
+    xnat_download()
+    ---------------
+    
+    Using the experiment IDs from DOWNLOAD_LIST, download any experiements which are NOT
+    present in DOWNLOAD_LIST as zip files from XNAT.  This will dump the zip files in a temporary
+    directory named as
+        DATA_PATH/SUBJECT_NAME/ZIP/XNAT_EXPERIMENT_ID
+    This is removed after unzipping by data_unzip()
+
+
+    Returns
+    -------
+    None.
+
+    """
     with open(download_list, 'r') as f:
         tmp = f.readlines()
     exp_downloaded = []
@@ -80,7 +111,24 @@ def xnat_download():
     session.disconnect()
 
 def data_unzip():
-    # phase 3: unzip data to /cubric/collab/108_QA/SCANNER/raw/XNATID/SESSIONID
+    """
+    data_unzip()
+    ------------
+    
+    Following on from xnat_download(), check the experiment .zip files in DATA_PATH/SUBJECT_NAME/zip
+    then unzip and convert to nifti
+    
+    Upon conversion to nifti, data are placed in 
+    DATA_PATH/SUBJECT_NAME/nifti/XNAT_EXPERIMENT_ID
+    ( e.g.  /cubric/collab/108_QA/3TE/nifti/XNAT_E11630 )
+    
+    After completion, remove the temporary directories with dicoms
+
+    Returns
+    -------
+    None.
+
+    """
     print('\nChecking for XNAT zip files in ' + data_path)
     for ppt, ppt_xn in qcsubj.items():
         #set up temporary dicom directory (scanner level)
@@ -130,6 +178,28 @@ def data_unzip():
         shutil.rmtree(dir_zip)
         
 def proc_fmriqc(analyse_all=False):
+    """
+    proc_fmriqc(analyse_all=False):
+
+    Principle:
+       get the nifti names in names in scanner/nifti directories
+       filter the fmri runs
+       get the names of the report directories in the scanner/summary directories
+       only analyse the niftis where there is no existing report        
+
+
+    Parameters
+    ----------
+    analyse_all : BOOL, optional
+        Reanalyse all data. The default is False.  True will reanalyse all data, irrespective
+        of whether output already exists.
+
+    Returns
+    -------
+    None.
+
+    """
+    
     # set up paths
     data_root = '/cubric/collab/108_QA'
     scanners = ['QA7T', 'QA3TW', 'QA3TE', 'QA3TM']
@@ -140,7 +210,6 @@ def proc_fmriqc(analyse_all=False):
         nifti_path.append(os.path.join(data_root, s, 'nifti'))
         report_path.append(os.path.join(data_root, s, 'fmriqc_2023/proc'))
     print(nifti_path,report_path)
-    
     
     # work out which niftis have already been processed
     fmriqc_names = ['GloverGSQAP.nii', 'Warmingup.nii']
