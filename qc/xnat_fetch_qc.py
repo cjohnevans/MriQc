@@ -55,7 +55,7 @@ def update_download_list():
         for line in exp_done:
             f.write(line + '\n')
 
-def xnat_download():
+def xnat_download(list_only=False):
     """
     xnat_download()
     ---------------
@@ -66,6 +66,10 @@ def xnat_download():
         DATA_PATH/SUBJECT_NAME/ZIP/XNAT_EXPERIMENT_ID
     This is removed after unzipping by data_unzip()
 
+    Parameters
+    ----------
+    list_only : BOOL, optional
+                Don't download data from xnat, only list the new qc sessions
 
     Returns
     -------
@@ -103,11 +107,13 @@ def xnat_download():
                             print('Session ' + e + ' is new.')
                             exp_to_download.append(e)
                             
-                    print(str(len(exp_to_download)) + ' new session(s) will be downloaded')
-                    for ed in exp_to_download:
-                        zip_path = os.path.join(dir_zip, ed + '.zip')
-                        print('Downloading ' + ed + ' to ' + zip_path)
-                        qc_exp[ed].download(zip_path)                                               
+                    print(str(len(exp_to_download)) + ' new session(s) are available')
+                    
+                    if not list_only:
+                        for ed in exp_to_download:
+                            zip_path = os.path.join(dir_zip, ed + '.zip')
+                            print('Downloading ' + ed + ' to ' + zip_path)
+                            qc_exp[ed].download(zip_path)                                               
     session.disconnect()
 
 def data_unzip():
@@ -214,9 +220,15 @@ def proc_fmriqc(analyse_all=False):
     # work out which niftis have already been processed
     fmriqc_names = ['GloverGSQAP.nii', 'Warmingup.nii']
     
-    
 
-#update_download_list()
-#xnat_download()
-#data_unzip()
-proc_fmriqc()
+def fetch_qc(update=False, list_new=False, download_new=False, unzip=False, proc_fmri=False):
+    if update:
+        update_download_list()
+    if list_new:
+        xnat_download(list_only=True)
+    if download_new:
+        xnat_download()
+    if unzip:
+        data_unzip()
+    if proc_fmri:
+        proc_fmriqc()
