@@ -48,7 +48,7 @@ class BasicQc:
         # calc minimum expected radius
         self.ph_radius = np.min([row_width, col_width])/2
     
-    def mask_phantom(self, R_mask):
+    def mask_phantom(self, R_mask=None, plot_mask=False):
         row_min = int(-self.ph_centre[0])
         row_max = int(self.im_shape[0] - self.ph_centre[0])
         col_min = int(-self.ph_centre[1])
@@ -62,11 +62,14 @@ class BasicQc:
         col_sqr = np.power(col_grid2,2)
         row_sqr = np.power(row_grid2,2)
         mask = (col_sqr + row_sqr) < np.power(R_mask,2)
-        mask_img = mask*np.max(np.max(self.im1))
-        fig3 = plt.figure()
-        ax = fig3.subplots(1,1)       
-        ax.imshow(mask_img+self.im1)
-        ax.set_title('mask')
+        
+        if plot_mask:
+            mask_img = mask*np.max(np.max(self.im1))
+            fig3 = plt.figure()
+            ax = fig3.subplots(1,1)       
+            ax.imshow(mask_img+self.im1)
+            ax.set_title('mask')
+            
         return mask
     
     # calculation functions
@@ -182,11 +185,11 @@ class BasicQc:
         sig_mean = np.mean(im_u[mask==True])
         uniform_pd = pd.DataFrame(columns=['pixel values'] \
                                   , data=im_u[mask==True])
-        print(uniform_pd.describe())
         uniform_pd.hist(bins=100)     
-        print(np.median(uniform_pd))
-        fig = plt.figure()
-        
+        uniform_desc = uniform_pd.describe()
+        sig_median = uniform_desc.loc['50%', 'pixel values'] 
+        uniform_desc['pixel scaled'] = (uniform_desc['pixel values'] / sig_median) - 1
+        print(uniform_desc)
 
 
 # MultiVolQc is generic for checking multi-volume MR data (e.g. fmri, qmt)

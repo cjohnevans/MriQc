@@ -34,6 +34,6 @@ print(f2)
 
 qc = mriqc.BasicQc()
 qc.snr_nema(f1,f2)
-
+ 
 # uniformity
-qc.uniformity_nema(f1)
+qc.uniformity_nema(f2)
