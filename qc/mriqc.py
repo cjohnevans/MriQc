@@ -143,10 +143,16 @@ class BasicQc:
     def uniformity_nema(self, f1):
         """
         
-        Principle:
+        Principles:
             get data, 
-            use same helper functions as snr to mask image
-            descriptive statistics on the uniformity
+            use same helper functions as snr to mask image.  Without masking, 
+               there is a bimodal distribution of near zeros (outside phantom)
+               and signal in the range ~1500 (inside phantom)
+            descriptive statistics on the uniformity.
+               Here a median probably makes more sense a head coil produces a 
+               highly asymmetric distribution.  Median = value which has half
+               of other values below it and half of other values above it.  
+               It's the 50% value in pd.describe
             some plots (2D? thresholded?)
             
 
@@ -172,8 +178,14 @@ class BasicQc:
         
         self.locate_phantom(im_u)
         mask_radius = np.power(0.75,0.5) * self.ph_radius
-        self.mask_phantom(mask_radius)
-        
+        mask = self.mask_phantom(mask_radius)
+        sig_mean = np.mean(im_u[mask==True])
+        uniform_pd = pd.DataFrame(columns=['pixel values'] \
+                                  , data=im_u[mask==True])
+        print(uniform_pd.describe())
+        uniform_pd.hist(bins=100)     
+        print(np.median(uniform_pd))
+        fig = plt.figure()
         
 
 

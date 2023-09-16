@@ -32,5 +32,8 @@ f2 = os.path.join(data_path, 'QA3TE', 'QA3TE_3_NEMA_SNR_Uniformity_T2_2_e2.nii')
 print(f1)
 print(f2)
 
-snr = mriqc.BasicQc()
-snr.snr_nema(f1,f2)
+qc = mriqc.BasicQc()
+qc.snr_nema(f1,f2)
+
+# uniformity
+qc.uniformity_nema(f1)
