@@ -9,80 +9,7 @@ class BasicQc:
     '''
     BasicQc: methods for elementary QC calculations
     '''
-    def snr_nema(self, f1, f2):
-        """
-        snr_nema(nii1,
-                 nii2)
-
-        Orientation:  axis 0 is the vertical direction (y) 
-                      axis 1 is the horizontal direction (x) 
-                      both for the referencing of the array and on imshow
-                      with im[axis0,axis1]
-
-
-        Parameters
-        ----------
-        f1 : string
-            path to first acquisition used in SNR calculation.
-        f2 : string
-            path to first acquisition used in SNR calculation.
-
-        Returns
-        -------
-        None.
-
-        """   
-        nii1 = nib.load(f1)
-        nii2 = nib.load(f2)
-
-        im1in = nii1.get_fdata(dtype=np.float64)
-        im2in = nii2.get_fdata(dtype=np.float64)
-        if im1in.shape[0] != im2in.shape[0]:
-            return None
-        if im1in.shape[1] != im2in.shape[1]:
-            return None
-        if im1in.ndim != im2in.ndim:
-            return None
-        self.im_shape = im1in.shape        
-        if self.im_shape[-1] != 1: #is a 3D nii
-            # take midpoint in 
-            mid_slice = int(np.floor( self.im_shape[-1] / 2 ))
-            
-        else:
-            # it's 2D
-            mid_slice = 0
-        self.im1 = im1in[:,:,mid_slice]
-        self.im2 = im2in[:,:,mid_slice]
-        
-        self.locate_phantom(self.im1)
-
-        # NEMA recommends using mask that's 75% of the area of the visible 
-        # phantom, so that's sqrt(0.75) of the radius
-        mask_radius = np.power(0.75,0.5) * self.ph_radius
-        snr_mask = self.mask_phantom(mask_radius)
-        
-        im1_im2 = 0.5 * (self.im1 + self.im2)
-        mean_signal = np.mean(im1_im2[snr_mask==True])
-        # subtraction for noise calculation
-        self.im_subtract = self.im1 - self.im2
-        im_sub_mask = self.im_subtract[snr_mask==True] #unravelled
-        std_signal = np.std(im_sub_mask)
-        self.snr = np.power(2, 0.5) * mean_signal / std_signal
-        self.mean_signal = mean_signal
-        print('SNR (NEMA) {:.6} '.format(self.snr))
-
-        fig = plt.figure(figsize=(10,5))
-        ax = fig.subplots(2,2)
-        ax[0][0].imshow(self.im1,cmap='jet')
-        ax[0][1].imshow(self.im2,cmap='jet')
-        ax[1][0].imshow(self.im_subtract*snr_mask ,cmap='jet')       
-        ax[1][1].plot(self.im1[self.im_centre[1],:])  # dim0 in blue
-        ax[1][1].plot(self.im1[:,self.im_centre[0]])  # dim1 in orange
-        #ax[1][1].plot(im_sub_mask)
-        
-
-        
-        
+    # Helper functions first
     def locate_phantom(self,im1):
         """
         locate_phantom(im1)
@@ -141,6 +68,114 @@ class BasicQc:
         ax.imshow(mask_img+self.im1)
         ax.set_title('mask')
         return mask
+    
+    # calculation functions
+    def snr_nema(self, f1, f2):
+        """
+        snr_nema(nii1,
+                 nii2)
+
+        Orientation:  axis 0 is the vertical direction (y) 
+                      axis 1 is the horizontal direction (x) 
+                      both for the referencing of the array and on imshow
+                      with im[axis0,axis1]
+
+
+        Parameters
+        ----------
+        f1 : string
+            path to first acquisition used in SNR calculation.
+        f2 : string
+            path to first acquisition used in SNR calculation.
+
+        Returns
+        -------
+        None.
+
+        """   
+        nii1 = nib.load(f1)
+        nii2 = nib.load(f2)
+
+        im1in = nii1.get_fdata(dtype=np.float64)
+        im2in = nii2.get_fdata(dtype=np.float64)
+        if im1in.shape[0] != im2in.shape[0]:
+            return None
+        if im1in.shape[1] != im2in.shape[1]:
+            return None
+        if im1in.ndim != im2in.ndim:
+            return None
+        self.im_shape = im1in.shape        
+        if self.im_shape[-1] != 1: #is a 3D nii
+            # take midpoint in 
+            mid_slice = int(np.floor( self.im_shape[-1] / 2 ))          
+        else:
+            # it's 2D
+            mid_slice = 0
+        self.im1 = im1in[:,:,mid_slice]
+        self.im2 = im2in[:,:,mid_slice]
+        
+        self.locate_phantom(self.im1)
+
+        # NEMA recommends using mask that's 75% of the area of the visible 
+        # phantom, so that's sqrt(0.75) of the radius
+        mask_radius = np.power(0.75,0.5) * self.ph_radius
+        snr_mask = self.mask_phantom(mask_radius)
+        
+        im1_im2 = 0.5 * (self.im1 + self.im2)
+        mean_signal = np.mean(im1_im2[snr_mask==True])
+        # subtraction for noise calculation
+        self.im_subtract = self.im1 - self.im2
+        im_sub_mask = self.im_subtract[snr_mask==True] #unravelled
+        std_signal = np.std(im_sub_mask)
+        self.snr = np.power(2, 0.5) * mean_signal / std_signal
+        self.mean_signal = mean_signal
+        print('SNR (NEMA) {:.6} '.format(self.snr))
+
+        fig = plt.figure(figsize=(10,5))
+        ax = fig.subplots(2,2)
+        ax[0][0].imshow(self.im1,cmap='jet')
+        ax[0][1].imshow(self.im2,cmap='jet')
+        ax[1][0].imshow(self.im_subtract*snr_mask ,cmap='jet')       
+        ax[1][1].plot(self.im1[self.im_centre[1],:])  # dim0 in blue
+        ax[1][1].plot(self.im1[:,self.im_centre[0]])  # dim1 in orange
+        #ax[1][1].plot(im_sub_mask)
+        
+    def uniformity_nema(self, f1):
+        """
+        
+        Principle:
+            get data, 
+            use same helper functions as snr to mask image
+            descriptive statistics on the uniformity
+            some plots (2D? thresholded?)
+            
+
+        Parameters
+        ----------
+        f1 : string
+            Path to nii file for uniformity analysis.
+
+        Returns
+        -------
+        None.
+
+        """
+        nii = nib.load(f1)
+        im_in = nii.get_fdata(dtype=np.float64)        
+        if im_in.shape[-1] != 1: #is a 3D nii
+            # take midpoint in 
+            mid_slice = int(np.floor( im_in.shape[-1] / 2 ))          
+        else:
+            # it's 2D
+            mid_slice = 0
+        im_u = im_in[:,:,mid_slice]
+        
+        self.locate_phantom(im_u)
+        mask_radius = np.power(0.75,0.5) * self.ph_radius
+        self.mask_phantom(mask_radius)
+        
+        
+
 
 # MultiVolQc is generic for checking multi-volume MR data (e.g. fmri, qmt)
 class MultiVolQc:
