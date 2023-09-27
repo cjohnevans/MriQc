@@ -14,7 +14,9 @@ Set of functions to handle get data from XNAT and launch processing, with approi
 
 import xnat
 import subprocess
-import os, shutil
+import os, shutil, sys
+sys.path.append('/home/sapje1/code/python_mrobjects/qc')
+import mriqc
 
 data_path = '/cubric/collab/108_QA'
 download_done = os.path.join(data_path, 'xnat_download_done.txt')
@@ -31,7 +33,8 @@ def update_downloaded():
     update_downloaded()
     ----------------------
     
-    Check data already present in DATA_PATH (global) and update file DOWNLOAD_DONE (global) with a set
+    Check data downloaded, unzipped and converted to nifti in DATA_PATH/nifti  and update 
+    file DOWNLOAD_DONE (global) with a set
     of XNAT experiment IDs.  This is to be used by xnat_download() to grab only NEW data from XNAT.
     It should be run before any other calls in this module.
 
@@ -58,10 +61,10 @@ def update_downloaded():
 
 def update_xnat_new():
     """
-    xnat_download()
+    update_xnat_new()
     ---------------
     
-    Using the experiment IDs from DOWNLOAD_DONE, download any experiments which are NOT
+    Check through XNAT sessions 
     present in DOWNLOAD_DONE as zip files from XNAT.  This will dump the zip files in a temporary
     directory named as
         DATA_PATH/SUBJECT_NAME/ZIP/XNAT_EXPERIMENT_ID
@@ -117,6 +120,10 @@ def update_xnat_new():
     session.disconnect()
 
 def xnat_download():
+    """
+    xnat_download()
+    Check through all subjects to find new experiments on XNAT.  If the 
+    """
 
     # get list of new experiments to download   
     with open(download_new, 'r') as f:
@@ -242,26 +249,52 @@ def proc_fmriqc(analyse_all=False):
     """
     
     # set up paths
-    data_root = '/cubric/collab/108_QA'
+    data_path = '/cubric/collab/108_QA'
     scanners = ['QA7T', 'QA3TW', 'QA3TE', 'QA3TM']
     nifti_path = []
     report_path = []
 
     for s in scanners:
-        nifti_path.append(os.path.join(data_root, s, 'nifti'))
-        report_path.append(os.path.join(data_root, s, 'fmriqc_2023/proc'))
-    print(nifti_path,report_path)
+        nifti_path = os.path.join(data_path, s, 'nifti')
+        report_path = os.path.join(data_path, s, 'fmriqc_glover/proc')
+        exam_list = os.listdir(os.path.join(data_path, s, 'nifti'))
+        print(exam_list)
+        for e in exam_list:
+            # find fmriqc data types
+            series_list = os.listdir(os.path.join(nifti_path, e))
+            for se in series_list:
+                se_no_ext = se.split('.')[0] # filename, no extension
+                if 'GloverGSQAP.nii' in se:
+                    print(se_no_ext + ' is Glover')
+                    rep_path = os.path.join(data_path, s, 'fmriqc_glover/proc',se_no_ext)
+                    try:
+                        os.listdir(rep_path)
+                    except:
+                        print(se_no_ext + ' is new... Analysing...')
+                        fmri_qc = mriqc.FmriQc(os.path.join(nifti_path, e, se) \
+                                  , report_path = rep_path)
+                if 'Warmingup.nii' in se or 'WarmingUp.nii' in se:
+                    print(se + ' is warm up')
+                    rep_path = os.path.join(data_path, s, 'fmriqc_warmup/proc', se_no_ext)
+                if 'QC_MB_GRE_EPI_FA15_Tx220V.nii' in se:
+                    print(se + ' is MB')
+                    rep_path = os.path.join(data_path, s, 'fmriqc_MB/proc', se_no_ext)
     
-    # work out which niftis have already been processed
-    fmriqc_names = ['GloverGSQAP.nii', 'Warmingup.nii']
-    
+def check_qc():
+    '''
+    check the status of the QC directory
+    '''
+    scanners = ['QA7T', 'QA3TW', 'QA3TE', 'QA3TM']
+    for s in scanners:
+        print('Summary of ' + s)
+        nifti_sess = os.listdir(os.path.join(data_path, s, 'nifti'))
+        print('Number of sessions with niftis:'  + str(len(nifti_sess)))
 
-def fetch_qc(update=False, list_new=False, download_new=False, unzip=False, proc_fmri=False):
-    if update:
-        update_download_done()
-    if list_new:
-        xnat_download(list_only=True)
-    if download_new:
+
+def fetch_qc(download=True, unzip=True, proc_fmri=True):
+    update_downloaded()
+    update_xnat_new()
+    if download:
         xnat_download()
     if unzip:
         data_unzip()
