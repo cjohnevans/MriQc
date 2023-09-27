@@ -17,7 +17,8 @@ import subprocess
 import os, shutil
 
 data_path = '/cubric/collab/108_QA'
-download_list = os.path.join(data_path, 'xnat_download_list.txt')
+download_done = os.path.join(data_path, 'xnat_download_done.txt')
+download_new =  os.path.join(data_path, 'xnat_new.txt')
 
 qcsubj = { 'QA7T' : 'XNAT_S06014',
            'QA3TM' : 'XNAT_S06051',
@@ -25,12 +26,12 @@ qcsubj = { 'QA7T' : 'XNAT_S06014',
            'QA3TW' : 'XNAT_S06091'
         }
 
-def update_download_list():
+def update_downloaded():
     """
-    update_download_list()
+    update_downloaded()
     ----------------------
     
-    Check data already present in DATA_PATH (global) and update file DOWNLOAD_LIST (global) with a set
+    Check data already present in DATA_PATH (global) and update file DOWNLOAD_DONE (global) with a set
     of XNAT experiment IDs.  This is to be used by xnat_download() to grab only NEW data from XNAT.
     It should be run before any other calls in this module.
 
@@ -51,17 +52,17 @@ def update_download_list():
                 exp_done.append(l)
     print('Found ' + str(len(exp_done)) + ' downloaded datasets:')
     print(exp_done)
-    with open(download_list,'w') as f:
+    with open(download_done,'w') as f:
         for line in exp_done:
             f.write(line + '\n')
 
-def xnat_download(list_only=False):
+def update_xnat_new():
     """
     xnat_download()
     ---------------
     
-    Using the experiment IDs from DOWNLOAD_LIST, download any experiements which are NOT
-    present in DOWNLOAD_LIST as zip files from XNAT.  This will dump the zip files in a temporary
+    Using the experiment IDs from DOWNLOAD_DONE, download any experiments which are NOT
+    present in DOWNLOAD_DONE as zip files from XNAT.  This will dump the zip files in a temporary
     directory named as
         DATA_PATH/SUBJECT_NAME/ZIP/XNAT_EXPERIMENT_ID
     This is removed after unzipping by data_unzip()
@@ -76,7 +77,7 @@ def xnat_download(list_only=False):
     None.
 
     """
-    with open(download_list, 'r') as f:
+    with open(download_done, 'r') as f:
         tmp = f.readlines()
     exp_downloaded = []
     for line in tmp:
@@ -86,9 +87,11 @@ def xnat_download(list_only=False):
     print('\nChecking for new data on XNAT')
     
     with xnat.connect('https://xnat.cubric.cf.ac.uk') as session:
+        with open(download_new, 'w') as fnew:
+            fnew.write('# 108_QA2023\n') # overwrites old file
         subj = session.projects['108_QA2023'].subjects
         for s in subj:
-            for (qc_subj, qc_subj_xn) in qcsubj.items():
+            for (qc_subj_name, qc_subj_xn) in qcsubj.items():
                 if qc_subj_xn in s:
                     subj_id = subj[s].label  # subj_id is QA3TM etc.. 
                     qc_exp = subj[s].experiments
@@ -107,14 +110,46 @@ def xnat_download(list_only=False):
                             print('Session ' + e + ' is new.')
                             exp_to_download.append(e)
                             
-                    print(str(len(exp_to_download)) + ' new session(s) are available')
+                    print(str(len(exp_to_download)) + ' new session(s) are available\n')
+                    with open(download_new, 'a') as fnew:
+                        fnew.write('#' + qc_subj_name + '\n')
+                        fnew.writelines(line+'\n' for line in exp_to_download)
+    session.disconnect()
+
+def xnat_download():
+
+    # get list of new experiments to download   
+    with open(download_new, 'r') as f:
+        tmp = f.readlines()
+        exp_new = []
+        for line in tmp:
+            if 'XNAT_E' in line:
+                exp_new.append(line.replace('\n',''))
+
+        print(len(exp_new))
+        print(exp_new)
+                 
+    # download new experiments
+    with xnat.connect('https://xnat.cubric.cf.ac.uk') as session:
+        subj = session.projects['108_QA2023'].subjects
+        for s in subj:
+            for (qc_subj_name, qc_subj_xn) in qcsubj.items():
+                if qc_subj_xn in s:
+                    subj_id = subj[s].label  # subj_id is QA3TM etc.. 
+                    qc_exp = subj[s].experiments #qc_exp is the qc experiments for this subject
+                    print(qc_subj_name)
+
+                    # set up zip path for this scanner (subject)
+                    dir_zip = os.path.join(data_path, subj_id, 'zip')
+                    if not os.path.isdir(dir_zip):
+                        os.mkdir(dir_zip)                     
                     
-                    if not list_only:
-                        for ed in exp_to_download:
+                    for ed in qc_exp:   #loop over xnat experiments for this subject
+                        if ed in exp_new:  # download if new
                             zip_path = os.path.join(dir_zip, ed + '.zip')
                             print('Downloading ' + ed + ' to ' + zip_path)
                             qc_exp[ed].download(zip_path)                                               
-    session.disconnect()
+ 
 
 def data_unzip():
     """
@@ -223,7 +258,7 @@ def proc_fmriqc(analyse_all=False):
 
 def fetch_qc(update=False, list_new=False, download_new=False, unzip=False, proc_fmri=False):
     if update:
-        update_download_list()
+        update_download_done()
     if list_new:
         xnat_download(list_only=True)
     if download_new:
