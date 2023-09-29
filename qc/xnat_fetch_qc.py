@@ -19,7 +19,9 @@ sys.path.append('/home/sapje1/code/python_mrobjects/qc')
 import mriqc
 
 data_path = '/cubric/collab/108_QA'
+# download_done is a list of xnat experiments which will be IGNORED by xnat_update_new()
 download_done = os.path.join(data_path, 'xnat_download_done.txt')
+# download_new is the file created by xnat_update_new which will be downloaded by xnat_download()
 download_new =  os.path.join(data_path, 'xnat_new.txt')
 
 qcsubj = { 'QA7T' : 'XNAT_S06014',
@@ -34,7 +36,7 @@ def update_downloaded():
     ----------------------
     
     Check data downloaded, unzipped and converted to nifti in DATA_PATH/nifti  and update 
-    file DOWNLOAD_DONE (global) with a set
+    file DOWNLOAD_DONE with a set
     of XNAT experiment IDs.  This is to be used by xnat_download() to grab only NEW data from XNAT.
     It should be run before any other calls in this module.
 
@@ -54,32 +56,33 @@ def update_downloaded():
             if 'XNAT_E' in l and '.zip' not in l:
                 exp_done.append(l)
     print('Found ' + str(len(exp_done)) + ' downloaded datasets:')
-    print(exp_done)
     with open(download_done,'w') as f:
         for line in exp_done:
             f.write(line + '\n')
 
-def update_xnat_new():
+def update_xnat_new(update_local=True):
     """
     update_xnat_new()
     ---------------
     
-    Check through XNAT sessions 
-    present in DOWNLOAD_DONE as zip files from XNAT.  This will dump the zip files in a temporary
-    directory named as
-        DATA_PATH/SUBJECT_NAME/ZIP/XNAT_EXPERIMENT_ID
-    This is removed after unzipping by data_unzip()
+    Check sessions on XNAT matching 108_QA and one of qasubj (QA3TW, ...), and get the xnat experiment
+    IDs (XNAT_E...).  Put those that are NOT in DOWNLOAD_DONE into DOWNLOAD_NEW
+
 
     Parameters
     ----------
-    list_only : BOOL, optional
-                Don't download data from xnat, only list the new qc sessions
+    None
 
     Returns
     -------
     None.
 
     """
+
+#   update the list of downloaded and converted sessions
+    if update_local:
+        update_downloaded()
+
     with open(download_done, 'r') as f:
         tmp = f.readlines()
     exp_downloaded = []
@@ -133,8 +136,8 @@ def xnat_download():
             if 'XNAT_E' in line:
                 exp_new.append(line.replace('\n',''))
 
-        print(len(exp_new))
-        print(exp_new)
+        print('There are ' + str(len(exp_new)) + ' experiments to download')
+
                  
     # download new experiments
     with xnat.connect('https://xnat.cubric.cf.ac.uk') as session:
@@ -155,7 +158,10 @@ def xnat_download():
                         if ed in exp_new:  # download if new
                             zip_path = os.path.join(dir_zip, ed + '.zip')
                             print('Downloading ' + ed + ' to ' + zip_path)
-                            qc_exp[ed].download(zip_path)                                               
+                            try:
+                                qc_exp[ed].download(zip_path)
+                            except:
+                                print('!!!WARNING: Download of ' + ed + ' failed')
  
 
 def data_unzip():
@@ -203,7 +209,10 @@ def data_unzip():
                     print(dir_xnat_sess + ' exists.  Skipping unzip')
                 else:
                     print('Unzipping ' + zip_file + ' to ' + dir_xnat_sess)
-                    sb = subprocess.run(['unzip', '-q', '-d', dir_xnat_sess, zip_file])
+                    try:
+                        sb = subprocess.run(['unzip', '-q', '-d', dir_xnat_sess, zip_file])
+                    except:
+                        print('!!!WARNING: Unzipping ' + zip_file + ' failed')
                 
                 # get launch dir & output dir for dcm2niix
                 dir_scan_sess = os.path.join(dir_xnat_sess,os.listdir(dir_xnat_sess)[0],'scans')
@@ -265,7 +274,6 @@ def proc_fmriqc(analyse_all=False):
             for se in series_list:
                 se_no_ext = se.split('.')[0] # filename, no extension
                 if 'GloverGSQAP.nii' in se:
-                    print(se_no_ext + ' is Glover')
                     rep_path = os.path.join(data_path, s, 'fmriqc_glover/proc',se_no_ext)
                     try:
                         os.listdir(rep_path)
@@ -274,11 +282,21 @@ def proc_fmriqc(analyse_all=False):
                         fmri_qc = mriqc.FmriQc(os.path.join(nifti_path, e, se) \
                                   , report_path = rep_path)
                 if 'Warmingup.nii' in se or 'WarmingUp.nii' in se:
-                    print(se + ' is warm up')
                     rep_path = os.path.join(data_path, s, 'fmriqc_warmup/proc', se_no_ext)
+                    try:
+                        os.listdir(rep_path)
+                    except:
+                        print(se_no_ext + ' is new... Analysing...')
+                        fmri_qc = mriqc.FmriQc(os.path.join(nifti_path, e, se) \
+                                  , report_path = rep_path)
                 if 'QC_MB_GRE_EPI_FA15_Tx220V.nii' in se:
-                    print(se + ' is MB')
                     rep_path = os.path.join(data_path, s, 'fmriqc_MB/proc', se_no_ext)
+                    try:
+                        os.listdir(rep_path)
+                    except:
+                        print(se_no_ext + ' is new... Analysing...')
+                        fmri_qc = mriqc.FmriQc(os.path.join(nifti_path, e, se) \
+                                  , report_path = rep_path)
     
 def check_qc():
     '''
@@ -292,7 +310,6 @@ def check_qc():
 
 
 def fetch_qc(download=True, unzip=True, proc_fmri=True):
-    update_downloaded()
     update_xnat_new()
     if download:
         xnat_download()

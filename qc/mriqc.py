@@ -4,6 +4,7 @@ import os
 import matplotlib.pyplot as plt
 import pandas as pd
 import warnings
+import datetime as dt
 
 class BasicQc:
     '''
@@ -819,13 +820,18 @@ class FmriQcOverview():
         Generate summary of FmriQc data over a time period
         Requires an input path with output *_report directories containing
         summary *.dat files with sfnr etc outputs for a qc run.
+        Uses os.walk(), so pointing to e.g. /cubric/collab/108_QA/QA7T/fmriqc_glover/
+        will navigate to the proc directory to find report *.dat files
+        
     '''
     def __init__(self,path_to_reports):
         '''
         Parameters
         ----------
         path_to_reports : string
-            Path to top level where FmriQc reports are saved 
+            Path to top level where FmriQc reports are saved
+
+        Requires the path_to_reports directory to have a 'summary' subdirectory for analysis.
 
         Returns
         -------
@@ -837,7 +843,7 @@ class FmriQcOverview():
                 if '.dat' in ff:
                     self.dat_files.append(os.path.join(root,ff))                    
         self.dat_to_pandas()
-        self.plots()
+        self.plots(path_to_reports)
         
     def dat_to_pandas(self):
         '''
@@ -876,11 +882,17 @@ class FmriQcOverview():
         self.oview_qc=self.oview_qc.rename(columns={'sfnr_vol':'sfnr_volume', 'mean_vol':'mean_volume', 'sd_vol':'sd_volume'})    
         self.oview_qc.tail()
         
-    def plots(self):
-        self.oview_qc.plot(x='date', y=['sfnr_volume', 'sfnr_voi'])   
-        self.oview_qc.plot(x='date', y=['mean_volume', 'mean_voi'])
-        self.oview_qc.plot(x='date', y=['sd_volume', 'sd_voi'])
-        self.oview_qc.plot(x='date', y=['drift'])
+    def plots(self, path_to_reports):
+        fig = plt.figure(figsize=(18,6))
+        axes = fig.subplots(1,3)
+        self.oview_qc.plot(x='date', y=['sfnr_volume', 'sfnr_voi']\
+                           , ax=axes[0], title = 'EPI SFNR', grid=True, marker='o')   
+        self.oview_qc.plot(x='date', y=['mean_volume', 'mean_voi']\
+                           , ax=axes[1], title='EPI Mean Signal', grid=True, marker='o')
+        self.oview_qc.plot(x='date', y=['drift']\
+                           , ax=axes[2], title='EPI Drift (%)', grid=True, marker='o')
+        fig.savefig(os.path.join(path_to_reports, 'summary'\
+                        , 'fmriqc_'+str(dt.datetime.now().isoformat()[:-7]).replace(':','-')))
           
 
 def threshold_vol(vol, by_fraction, threshold):
