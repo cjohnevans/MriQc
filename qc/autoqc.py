@@ -12,7 +12,7 @@ import xnat_fetch_qc as xnqc
 xnqc.update_xnat_new()
 xnqc.xnat_download()
 xnqc.data_unzip()
-xnqc.proc_fmri()
+xnqc.proc_fmriqc()
 
 # run fmriqc summary script
 mriqc.FmriQcOverview('/cubric/collab/108_QA/QA7T/fmriqc_glover/')

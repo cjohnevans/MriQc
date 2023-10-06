@@ -211,24 +211,23 @@ def data_unzip():
                     print('Unzipping ' + zip_file + ' to ' + dir_xnat_sess)
                     try:
                         sb = subprocess.run(['unzip', '-q', '-d', dir_xnat_sess, zip_file])
-                    except:
-                        print('!!!WARNING: Unzipping ' + zip_file + ' failed')
-                
-                # get launch dir & output dir for dcm2niix
-                dir_scan_sess = os.path.join(dir_xnat_sess,os.listdir(dir_xnat_sess)[0],'scans')
-                dir_scan_nifti = os.path.join(nifti_temp, exp_id)
-                
-                # skip if nifti directory exists
-                if os.path.isdir(dir_scan_nifti):
-                    print(dir_scan_nifti + ' exists.  Skipping dcm2niix')
-                else:   
-                    os.mkdir(dir_scan_nifti)
-                    print('Running dcm2niix and outputing to  ' + dir_scan_nifti)
-                    sb = subprocess.run(['dcm2niix', \
+                        # get launch dir & output dir for dcm2niix
+                        dir_scan_sess = os.path.join(dir_xnat_sess,os.listdir(dir_xnat_sess)[0],'scans')
+                        dir_scan_nifti = os.path.join(nifti_temp, exp_id)
+                        # skip if nifti directory exists
+                        if os.path.isdir(dir_scan_nifti):
+                            print(dir_scan_nifti + ' exists.  Skipping dcm2niix')
+                        else:   
+                            os.mkdir(dir_scan_nifti)
+                            print('Running dcm2niix and outputing to  ' + dir_scan_nifti)
+                            sb = subprocess.run(['dcm2niix', \
                                      '-f', '%i_%s_%d',\
                                      '-o', dir_scan_nifti,
                                      dir_scan_sess] , \
                                      stdout=subprocess.DEVNULL)
+                    except:
+                        print('!!!WARNING: Unzipping ' + zip_file + ' failed')
+
         # tidy up temp directories
         print('Tidying temporary directories' + dicom_temp + ' and ' + dir_zip)
         shutil.rmtree(dicom_temp)
@@ -267,7 +266,6 @@ def proc_fmriqc(analyse_all=False):
         nifti_path = os.path.join(data_path, s, 'nifti')
         report_path = os.path.join(data_path, s, 'fmriqc_glover/proc')
         exam_list = os.listdir(os.path.join(data_path, s, 'nifti'))
-        print(exam_list)
         for e in exam_list:
             # find fmriqc data types
             series_list = os.listdir(os.path.join(nifti_path, e))
