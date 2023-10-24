@@ -125,7 +125,7 @@ def update_xnat_new(update_local=True):
 def xnat_download():
     """
     xnat_download()
-    Check through all subjects to find new experiments on XNAT.  If the 
+    Check through list of XNAT experiments in DOWNLOAD_NEW and download from XNAT. 
     """
 
     # get list of new experiments to download   
