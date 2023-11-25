@@ -890,12 +890,14 @@ class FmriQcOverview():
         '''
         self.dat_files = []
         self.path_to_reports = path_to_reports
+        print('\nChecking for new fmriqc analysis to add to summary')
         for root,dirs,files in os.walk(path_to_reports):
             for ff in files:
                 if '.dat' in ff:
                     self.dat_files.append(os.path.join(root,ff))  
         run_analysis = self.check_analysis_required()
         if run_analysis:
+            print('Running summary analysis on' + path_to_reports)
             self.dat_to_pandas()
             self.plots()
         
@@ -975,7 +977,6 @@ class FmriQcOverview():
         print('latest QA dataset downloaded ' + str(time.ctime(t_data)))
         t_analysis = self.find_latest_file(os.path.join(self.path_to_reports, 'summary'))
         print('latest QA dataset analysed    ' + str(time.ctime(t_analysis)))
-        print(t_data, t_analysis)
         if t_data > t_analysis:
             print('New QA data since last analysis')
             new_qa = True

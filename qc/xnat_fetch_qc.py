@@ -147,7 +147,6 @@ def xnat_download():
                 if qc_subj_xn in s:
                     subj_id = subj[s].label  # subj_id is QA3TM etc.. 
                     qc_exp = subj[s].experiments #qc_exp is the qc experiments for this subject
-                    print(qc_subj_name)
 
                     # set up zip path for this scanner (subject)
                     dir_zip = os.path.join(data_path, subj_id, 'zip')
@@ -229,7 +228,6 @@ def data_unzip():
                         print('!!!WARNING: Unzipping ' + zip_file + ' failed')
 
         # tidy up temp directories
-        print('Tidying temporary directories' + dicom_temp + ' and ' + dir_zip)
         shutil.rmtree(dicom_temp)
         shutil.rmtree(dir_zip)
         
@@ -263,6 +261,7 @@ def proc_fmriqc(analyse_all=False):
     report_path = []
 
     for s in scanners:
+        print('Checking for new nifti files in '+ s)
         nifti_path = os.path.join(data_path, s, 'nifti')
         report_path = os.path.join(data_path, s, 'fmriqc_glover/proc')
         exam_list = os.listdir(os.path.join(data_path, s, 'nifti'))
