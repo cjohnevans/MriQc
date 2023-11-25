@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import warnings
 import datetime as dt
+import time  # for dealing with linux file timestamps in FmriQcOverview
 
 class BasicQc:
     '''
@@ -888,12 +889,15 @@ class FmriQcOverview():
         None.
         '''
         self.dat_files = []
+        self.path_to_reports = path_to_reports
         for root,dirs,files in os.walk(path_to_reports):
             for ff in files:
                 if '.dat' in ff:
-                    self.dat_files.append(os.path.join(root,ff))                    
-        self.dat_to_pandas()
-        self.plots(path_to_reports)
+                    self.dat_files.append(os.path.join(root,ff))  
+        run_analysis = self.check_analysis_required()
+        if run_analysis:
+            self.dat_to_pandas()
+            self.plots()
         
     def dat_to_pandas(self):
         '''
@@ -931,8 +935,16 @@ class FmriQcOverview():
         self.oview_qc['scanner'] = self.oview_qc['File'].str.split('-', expand=True)[3].str.split('_', expand=True)[8]
         self.oview_qc=self.oview_qc.rename(columns={'sfnr_vol':'sfnr_volume', 'mean_vol':'mean_volume', 'sd_vol':'sd_volume'})    
         self.oview_qc.tail()
+        self.oview_qc_short = self.oview_qc
+        self.oview_qc_short.index = self.oview_qc_short['date']
+        self.oview_qc_short=self.oview_qc_short.drop(columns=['date','File'])
+        self.oview_qc_short=self.oview_qc_short.sort_index(ascending=False)
+        self.oview_qc_short=self.oview_qc_short.iloc[0:10]
+        self.oview_qc_short.to_csv(os.path.join(self.path_to_reports, 'summary' \
+                        , 'fmriqc_'+str(dt.datetime.now().isoformat()[:-7]).replace(':','-')+'.txt'))
         
-    def plots(self, path_to_reports):
+        
+    def plots(self):
         fig = plt.figure(figsize=(18,6))
         axes = fig.subplots(1,3)
         self.oview_qc.plot(x='date', y=['sfnr_volume', 'sfnr_voi']\
@@ -941,9 +953,53 @@ class FmriQcOverview():
                            , ax=axes[1], title='EPI Mean Signal', grid=True, marker='o')
         self.oview_qc.plot(x='date', y=['drift']\
                            , ax=axes[2], title='EPI Drift (%)', grid=True, marker='o')
-        fig.savefig(os.path.join(path_to_reports, 'summary'\
+        fig.savefig(os.path.join(self.path_to_reports, 'summary'\
                         , 'fmriqc_'+str(dt.datetime.now().isoformat()[:-7]).replace(':','-')))
           
+    def check_analysis_required(self):
+        '''
+        check_analysis_required:
+            check whether new QA data has arrived since last analysis
+            work out the time of;
+            - last qa run
+            - last time summary was run on qa data
+            
+        Returns
+        -------
+        new_qa = True/False. True if there is new QA data since last analysis
+
+        '''
+        
+        # find latest download date
+        t_data=self.find_latest_file(os.path.join(self.path_to_reports, 'proc' ) )
+        print('latest QA dataset downloaded ' + str(time.ctime(t_data)))
+        t_analysis = self.find_latest_file(os.path.join(self.path_to_reports, 'summary'))
+        print('latest QA dataset analysed    ' + str(time.ctime(t_analysis)))
+        print(t_data, t_analysis)
+        if t_data > t_analysis:
+            print('New QA data since last analysis')
+            new_qa = True
+        else:
+            print('No new QA data')
+            new_qa = False
+        return new_qa
+            
+            
+        # find lastst summary date
+        
+    def find_latest_file(self, check_path):
+        '''
+        navigate check_path to get lastest file time (as in since start 
+        of time epoch)
+        '''
+        
+        file_list = os.listdir(check_path)
+        t_latest = 0
+        for f in file_list:
+            t = os.path.getctime(os.path.join(check_path, f))
+            if t > t_latest:
+                t_latest = t
+        return t_latest
 
 def threshold_vol(vol, by_fraction, threshold):
     '''
