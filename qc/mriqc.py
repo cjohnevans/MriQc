@@ -6,6 +6,7 @@ import pandas as pd
 import warnings
 import datetime as dt
 import time  # for dealing with linux file timestamps in FmriQcOverview
+import subprocess
 
 class BasicQc:
     '''
@@ -875,7 +876,7 @@ class FmriQcOverview():
         will navigate to the proc directory to find report *.dat files
         
     '''
-    def __init__(self,path_to_reports):
+    def __init__(self,system,path_to_reports, email_summary = False):
         '''
         Parameters
         ----------
@@ -889,8 +890,9 @@ class FmriQcOverview():
         None.
         '''
         self.dat_files = []
-        self.path_to_reports = path_to_reports
-        print('\nChecking for new fmriqc analysis to add to summary')
+        self.system = system
+        self.path_to_reports = path_to_reports 
+        print('\nChecking for new ' + system + ' fmriqc analysis to add to summary')
         for root,dirs,files in os.walk(path_to_reports):
             for ff in files:
                 if '.dat' in ff:
@@ -900,6 +902,7 @@ class FmriQcOverview():
             print('Running summary analysis on' + path_to_reports)
             self.dat_to_pandas()
             self.plots()
+            self.email_results()
         
     def dat_to_pandas(self):
         '''
@@ -944,20 +947,25 @@ class FmriQcOverview():
         self.oview_qc_short=self.oview_qc_short.iloc[0:10]
         self.oview_qc_short.to_csv(os.path.join(self.path_to_reports, 'summary' \
                         , 'fmriqc_'+str(dt.datetime.now().isoformat()[:-7]).replace(':','-')+'.txt'))
+        self.oview_qc_short.to_csv(os.path.join(self.path_to_reports, 'summary' \
+                        , 'fmriqc_latest.txt'))
         
         
     def plots(self):
         fig = plt.figure(figsize=(18,6))
         axes = fig.subplots(1,3)
         self.oview_qc.plot(x='date', y=['sfnr_volume', 'sfnr_voi']\
-                           , ax=axes[0], title = 'EPI SFNR', grid=True, marker='o')   
+                           , ax=axes[0], title = self.system+' EPI SFNR', grid=True, marker='o')   
         self.oview_qc.plot(x='date', y=['mean_volume', 'mean_voi']\
-                           , ax=axes[1], title='EPI Mean Signal', grid=True, marker='o')
+                           , ax=axes[1], title=self.system+' EPI Mean Signal', grid=True, marker='o')
         self.oview_qc.plot(x='date', y=['drift']\
-                           , ax=axes[2], title='EPI Drift (%)', grid=True, marker='o')
+                           , ax=axes[2], title=self.system+' EPI Drift (%)', grid=True, marker='o')
         fig.savefig(os.path.join(self.path_to_reports, 'summary'\
                         , 'fmriqc_'+str(dt.datetime.now().isoformat()[:-7]).replace(':','-')))
-          
+        fig.savefig(os.path.join(self.path_to_reports, 'summary'\
+                        , 'fmriqc_latest.png'))
+ 
+            
     def check_analysis_required(self):
         '''
         check_analysis_required:
@@ -1001,6 +1009,16 @@ class FmriQcOverview():
             if t > t_latest:
                 t_latest = t
         return t_latest
+    
+    def email_results(self):
+        email_address = 'd6e057f1.cf.onmicrosoft.com@emea.teams.ms' # 3TW
+        #email_address = 'c.john.evans@gmail.com'
+        
+        subprocess.run(['mailx','-s','fmriqc '+self.system, \
+                        '-a', os.path.join(self.path_to_reports, 'summary','fmriqc_latest.png'), \
+                        '-a', os.path.join(self.path_to_reports, 'summary','fmriqc_latest.txt'), \
+                        email_address])
+        
 
 def threshold_vol(vol, by_fraction, threshold):
     '''
