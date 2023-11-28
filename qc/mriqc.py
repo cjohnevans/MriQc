@@ -1013,7 +1013,6 @@ class FmriQcOverview():
     
     def email_results(self):
         email_address = 'd6e057f1.cf.onmicrosoft.com@emea.teams.ms' # 3TW
-        #email_address = 'c.john.evans@gmail.com'
         
         # Issue #2 - this hangs on wl026
         subprocess.run(['mailx','-s','fmriqc '+self.system, \
