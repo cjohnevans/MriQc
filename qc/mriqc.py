@@ -876,7 +876,7 @@ class FmriQcOverview():
         will navigate to the proc directory to find report *.dat files
         
     '''
-    def __init__(self,system,path_to_reports, email_summary = False):
+    def __init__(self,system,path_to_reports, email_summary=False):
         '''
         Parameters
         ----------
@@ -902,7 +902,8 @@ class FmriQcOverview():
             print('Running summary analysis on' + path_to_reports)
             self.dat_to_pandas()
             self.plots()
-            self.email_results()
+            if email_summary:
+                self.email_results()
         
     def dat_to_pandas(self):
         '''
@@ -948,7 +949,7 @@ class FmriQcOverview():
         self.oview_qc_short.to_csv(os.path.join(self.path_to_reports, 'summary' \
                         , 'fmriqc_'+str(dt.datetime.now().isoformat()[:-7]).replace(':','-')+'.txt'))
         self.oview_qc_short.to_csv(os.path.join(self.path_to_reports, 'summary' \
-                        , 'fmriqc_latest.txt'))
+                        , self.system+'_fmriqc_latest.txt'))
         
         
     def plots(self):
@@ -963,7 +964,7 @@ class FmriQcOverview():
         fig.savefig(os.path.join(self.path_to_reports, 'summary'\
                         , 'fmriqc_'+str(dt.datetime.now().isoformat()[:-7]).replace(':','-')))
         fig.savefig(os.path.join(self.path_to_reports, 'summary'\
-                        , 'fmriqc_latest.png'))
+                        , self.system+'_fmriqc_latest.png'))
  
             
     def check_analysis_required(self):
@@ -1014,6 +1015,7 @@ class FmriQcOverview():
         email_address = 'd6e057f1.cf.onmicrosoft.com@emea.teams.ms' # 3TW
         #email_address = 'c.john.evans@gmail.com'
         
+        # Issue #2 - this hangs on wl026
         subprocess.run(['mailx','-s','fmriqc '+self.system, \
                         '-a', os.path.join(self.path_to_reports, 'summary','fmriqc_latest.png'), \
                         '-a', os.path.join(self.path_to_reports, 'summary','fmriqc_latest.txt'), \
