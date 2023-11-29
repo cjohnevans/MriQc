@@ -704,8 +704,6 @@ class DiffusionQc(MultiVolDiffusion):
         None.
 
         '''
-           
-    
     
 class DwGradAxis:
     '''
@@ -798,15 +796,16 @@ class DwGradAxis:
         plot_histogram(g_uniformity_vol)
         # need to deal with the fact that multiple volumes are reported here
         return(g_iso, g_stdev, g_uniformity_vol)
-
     
 class SpikeQc(MultiVolQc):
     '''
     Methods for analysis of spike noise check data (single slice, multi vol EPI)
+    call by creating a SpikeQc instance (passing filename), then calling
+    spike_check()
     
     '''
     
-    def spike_check(self):
+    def spike_check(self, plot_title='spike'):
         '''
         SpikeQc.spike_check (
             
@@ -837,16 +836,17 @@ class SpikeQc(MultiVolQc):
         self.spike_slices = self.vol_data[spike_idx,:,:,:]
 
         # mean sig plot, with outliers
-        fig1,ax1 = plt.subplots()
+        fig1,ax1 = plt.subplots(1,2)
         v=range(len(slice_mean))
-        ax1.plot(v,slice_mean)
-        ax1.scatter(spike_idx,slice_mean[spike_idx],marker='o', color='red')
-        ax1.set_xlabel('Volume No.')
-        ax1.set_ylabel('Mean signal')
-        ax1.set_title(self.in_nii_file_root)
+        ax1[0].plot(v,slice_mean)
+        ax1[0].scatter(spike_idx,slice_mean[spike_idx],marker='o', color='red')
+        ax1[0].set_xlabel('Volume No.')
+        ax1[0].set_ylabel('Mean signal')
+        ax1[0].set_title(plot_title)
 
         #plot histogram
-        plot_histogram(slice_mean)
+        plot_histogram(slice_mean, ax=ax1[1])   
+        fig1.savefig(os.path.join(self.report_path,plot_title+'_spike_stats'))
 
         # plot slice images
         plot_row_max=5
@@ -865,14 +865,17 @@ class SpikeQc(MultiVolQc):
             rr = np.floor_divide(sl,plot_col_max)
             cc = np.mod(sl,plot_col_max)
             ax[rr][cc].imshow(self.spike_slices[sl,0,:,:], cmap='hsv')
+        fig.savefig(os.path.join(self.report_path,plot_title+'_spike_images'))
+
             
-class FmriQcOverview():
+class QcOverview():
     '''
-    class FmriQcOverview:
-        Generate summary of FmriQc data over a time period
-        Requires an input path with output *_report directories containing
-        summary *.dat files with sfnr etc outputs for a qc run.
-        Uses os.walk(), so pointing to e.g. /cubric/collab/108_QA/QA7T/fmriqc_glover/
+    class QcOverview:
+        Generate summary of QC data over a time period
+        Requires an path_to_reports with output 
+        *.dat files summarising outputs for a qc run.
+        Uses os.walk(), so pointing to e.g. 
+            /cubric/collab/108_QA/QA7T/fmriqc_glover/
         will navigate to the proc directory to find report *.dat files
         
     '''
@@ -898,6 +901,8 @@ class FmriQcOverview():
                 if '.dat' in ff:
                     self.dat_files.append(os.path.join(root,ff))  
         run_analysis = self.check_analysis_required()
+        
+        # this launches the summary analysis 
         if run_analysis:
             print('Running summary analysis on' + path_to_reports)
             self.dat_to_pandas()
@@ -905,6 +910,77 @@ class FmriQcOverview():
             if email_summary:
                 self.email_results()
         
+        def dat_to_pandas(self):
+            '''
+            this is void for base class
+            '''
+            return False
+        
+        def plots(self):
+            '''
+            this is void for base class
+            '''
+            return False            
+            
+    def check_analysis_required(self):
+        '''
+        check_analysis_required:
+            check whether new QA data has arrived since last analysis
+            work out the time of;
+            - last qa run
+            - last time summary was run on qa data
+            
+        Returns
+        -------
+        new_qa = True/False. True if there is new QA data since last analysis
+
+        '''
+        
+        # find latest download date
+        t_data=self.find_latest_file(os.path.join(self.path_to_reports, 'proc' ) )
+        print('latest QA dataset downloaded ' + str(time.ctime(t_data)))
+        t_analysis = self.find_latest_file(os.path.join(self.path_to_reports, 'summary'))
+        print('latest QA dataset analysed    ' + str(time.ctime(t_analysis)))
+        if t_data > t_analysis:
+            print('New QA data since last analysis')
+            new_qa = True
+        else:
+            print('No new QA data')
+            new_qa = False
+        return new_qa
+            
+            
+        # find lastst summary date
+        
+    def find_latest_file(self, check_path):
+        '''
+        navigate check_path to get lastest file time (as in since start 
+        of time epoch)
+        '''
+        
+        file_list = os.listdir(check_path)
+        t_latest = 0
+        for f in file_list:
+            t = os.path.getctime(os.path.join(check_path, f))
+            if t > t_latest:
+                t_latest = t
+        return t_latest
+    
+    def email_results(self):
+        email_address = 'd6e057f1.cf.onmicrosoft.com@emea.teams.ms' # 3TW
+        
+        # Issue #2 - this hangs on wl026
+        subprocess.run(['mailx','-s','fmriqc '+self.system, \
+                        '-a', os.path.join(self.path_to_reports, 'summary','fmriqc_latest.png'), \
+                        '-a', os.path.join(self.path_to_reports, 'summary','fmriqc_latest.txt'), \
+                        email_address])
+    
+class FmriQcOverview(QcOverview):
+    '''
+    class FmriQcOverview.  Inherits generic methods for finding .dat files
+    from QcOverview, but has specific methods for plotting and summarising 
+    data
+    '''
     def dat_to_pandas(self):
         '''
         Read in dat files (from self.dat_files) into pandas dataframe
@@ -965,61 +1041,13 @@ class FmriQcOverview():
                         , 'fmriqc_'+str(dt.datetime.now().isoformat()[:-7]).replace(':','-')))
         fig.savefig(os.path.join(self.path_to_reports, 'summary'\
                         , self.system+'_fmriqc_latest.png'))
- 
+  
             
-    def check_analysis_required(self):
-        '''
-        check_analysis_required:
-            check whether new QA data has arrived since last analysis
-            work out the time of;
-            - last qa run
-            - last time summary was run on qa data
+class SpikeQcOverview(QcOverview):
+    '''
+    Placeholder for spike analysis
+    '''            
             
-        Returns
-        -------
-        new_qa = True/False. True if there is new QA data since last analysis
-
-        '''
-        
-        # find latest download date
-        t_data=self.find_latest_file(os.path.join(self.path_to_reports, 'proc' ) )
-        print('latest QA dataset downloaded ' + str(time.ctime(t_data)))
-        t_analysis = self.find_latest_file(os.path.join(self.path_to_reports, 'summary'))
-        print('latest QA dataset analysed    ' + str(time.ctime(t_analysis)))
-        if t_data > t_analysis:
-            print('New QA data since last analysis')
-            new_qa = True
-        else:
-            print('No new QA data')
-            new_qa = False
-        return new_qa
-            
-            
-        # find lastst summary date
-        
-    def find_latest_file(self, check_path):
-        '''
-        navigate check_path to get lastest file time (as in since start 
-        of time epoch)
-        '''
-        
-        file_list = os.listdir(check_path)
-        t_latest = 0
-        for f in file_list:
-            t = os.path.getctime(os.path.join(check_path, f))
-            if t > t_latest:
-                t_latest = t
-        return t_latest
-    
-    def email_results(self):
-        email_address = 'd6e057f1.cf.onmicrosoft.com@emea.teams.ms' # 3TW
-        
-        # Issue #2 - this hangs on wl026
-        subprocess.run(['mailx','-s','fmriqc '+self.system, \
-                        '-a', os.path.join(self.path_to_reports, 'summary','fmriqc_latest.png'), \
-                        '-a', os.path.join(self.path_to_reports, 'summary','fmriqc_latest.txt'), \
-                        email_address])
-        
 
 def threshold_vol(vol, by_fraction, threshold):
     '''
@@ -1104,7 +1132,7 @@ def ortho_view(vol, title='image', save_png=False, save_dir='.', im_scale=[]):
  
     return mid_slice
 
-def plot_histogram(vol, save_png=False, save_path = '.'):
+def plot_histogram(vol, save_png=False, save_path = '.', ax = None):
     '''
     plot_histogram(vol, save_png=False, save_path='.'):
 
@@ -1123,13 +1151,15 @@ def plot_histogram(vol, save_png=False, save_path = '.'):
     bins = hist[1][1:]  # bins includes both ends, take the higher value
     vals = hist[0]
     fig = plt.figure(figsize=(30/2.56, 20/2.56))
-    ax = fig.subplots()
+    if ax == None:
+        ax = fig.subplots()
     ax.plot(bins, vals)
     ax.set_xlabel('Pixel Value')
     ax.set_ylabel('Number of pixels')
     ax.set_title('Image histogram')
     if save_png:
         fig.savefig(os.path.join(save_path, 'pixel_histogram.png'))
+    return ax
         
 def prep_data(scanner,root='/cubric/collab/108_QA'):
     '''

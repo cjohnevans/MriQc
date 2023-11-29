@@ -232,7 +232,7 @@ def data_unzip():
         shutil.rmtree(dicom_temp)
         shutil.rmtree(dir_zip)
         
-def proc_fmriqc(analyse_all=False):
+def proc_qc(analyse_all=False):
     """
     proc_fmriqc(analyse_all=False):
 
@@ -264,13 +264,14 @@ def proc_fmriqc(analyse_all=False):
     for s in scanners:
         print('Checking for new nifti files in '+ s)
         nifti_path = os.path.join(data_path, s, 'nifti')
-        report_path = os.path.join(data_path, s, 'fmriqc_glover/proc')
+#        report_path = os.path.join(data_path, s, 'fmriqc_glover/proc')
         exam_list = os.listdir(os.path.join(data_path, s, 'nifti'))
         for e in exam_list:
             # find fmriqc data types
             series_list = os.listdir(os.path.join(nifti_path, e))
             for se in series_list:
                 se_no_ext = se.split('.')[0] # filename, no extension
+                scan_date = se_no_ext[0:8]
                 if 'GloverGSQAP.nii' in se:
                     rep_path = os.path.join(data_path, s, 'fmriqc_glover/proc',se_no_ext)
                     try:
@@ -295,6 +296,17 @@ def proc_fmriqc(analyse_all=False):
                         print(se_no_ext + ' is new... Analysing...')
                         fmri_qc = mriqc.FmriQc(os.path.join(nifti_path, e, se) \
                                   , report_path = rep_path)
+                if 'spike' in se:
+                    if '.nii' in se:
+                        rep_path = os.path.join(data_path, s, 'spike/proc',se_no_ext)
+                        print(rep_path)
+                        try:
+                            os.listdir(rep_path)
+                        except:
+                            print(se_no_ext + ' is new... Analysing...')
+                            plttitle= s + '_' + scan_date
+                            mriqc.SpikeQc(os.path.join(nifti_path,e,se) \
+                                    , report_path=rep_path).spike_check(plttitle)
     
 def check_qc():
     '''
