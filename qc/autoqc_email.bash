@@ -13,11 +13,9 @@ do
 done
 
 spikefiles=`find /cubric/collab/108_QA -ipath '*spike_stats.png' -ctime -1 | xargs`
-junk=`echo $spikefiles | awk '{print $1}'`
 
-# loop over spikefiles after Thursday - too many files processed in 24 hours
-#for ss in $spikefiles
-for ss in $junk
+# loop over spikefiles, and email the new ones
+for ss in $spikefiles
 do
     name_root=`echo $ss | awk -Fstats '{print $1}'`
     name_stats=$ss
