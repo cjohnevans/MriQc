@@ -509,6 +509,9 @@ class FmriQc(MultiVolQc):
             sd_voi = 0  
 
         base_fname = self.in_nii_file.split('.')[0] # base filename from nii file
+        # deal with XA long year format
+        if base_fname[0:2]=='20':
+            base_fname=base_fname[2:]
         html_fname = os.path.join(self.report_path, 'fmriqc_'+base_fname+'.html')
         with open(html_fname, 'w') as f:
             f.write('<!doctype=html><title>fMRI QC</title>\n<body>\n<p>fMRI QC Report</p>\n')     
@@ -1009,10 +1012,13 @@ class FmriQcOverview(QcOverview):
 #        self.oview_qc.drop('File', axis=1)
         date_str = self.oview_qc['File'].str.split('-', expand=True)[0]
         date_pd = date_str.str.split('_', expand=True)
-        date_pd = date_pd.rename(columns={0:'year_short',1:'month',2:'day'})
+        # deal with annoying XA patientid update.  Add 2000 if year is 2 digit.
+        # year_temp could be YY (VB, VD, VE) or YYYY (XA)
+        date_pd = date_pd.rename(columns={0:'year_temp',1:'month',2:'day'})
         date_pd = date_pd.astype('int16')
-        date_pd['year'] = date_pd['year_short'].apply(lambda x: x+2000)
-        date_pd.pop('year_short')
+        date_pd['year']=date_pd['year_temp'][date_pd['year_temp']<100].apply(lambda x:x+2000)
+        date_pd['year']=date_pd['year_temp'][date_pd['year_temp']>=100].apply(lambda x:x) # don't add 2000
+        date_pd.pop('year_temp')
         self.oview_qc['date']=pd.to_datetime(date_pd)
         self.oview_qc['scanner'] = self.oview_qc['File'].str.split('-', expand=True)[3].str.split('_', expand=True)[8]
         self.oview_qc=self.oview_qc.rename(columns={'sfnr_vol':'sfnr_volume', 'mean_vol':'mean_volume', 'sd_vol':'sd_volume'})    

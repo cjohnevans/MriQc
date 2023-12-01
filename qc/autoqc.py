@@ -9,15 +9,15 @@ import mriqc
 import xnat_fetch_qc as xnqc
 
 # get new qc data from xnat
-xnqc.update_xnat_new()
-xnqc.xnat_download()
-xnqc.data_unzip()
-xnqc.proc_qc()
+#xnqc.update_xnat_new()
+#xnqc.xnat_download()
+#xnqc.data_unzip()
+#xnqc.proc_qc()
 
 # run fmriqc summary script
 mriqc.FmriQcOverview('3TW','/cubric/collab/108_QA/QA3TW/fmriqc_glover/', email_summary=False)
-mriqc.FmriQcOverview('7T','/cubric/collab/108_QA/QA7T/fmriqc_glover/', email_summary=False)
-mriqc.FmriQcOverview('7T','/cubric/collab/108_QA/QA7T/fmriqc_MB/', email_summary=False)
-mriqc.FmriQcOverview('3TE','/cubric/collab/108_QA/QA3TE/fmriqc_glover/', email_summary=False)
-mriqc.FmriQcOverview('3TM','/cubric/collab/108_QA/QA3TM/fmriqc_glover/', email_summary=False)
+#mriqc.FmriQcOverview('7T','/cubric/collab/108_QA/QA7T/fmriqc_glover/', email_summary=False)
+#mriqc.FmriQcOverview('7T','/cubric/collab/108_QA/QA7T/fmriqc_MB/', email_summary=False)
+#mriqc.FmriQcOverview('3TE','/cubric/collab/108_QA/QA3TE/fmriqc_glover/', email_summary=False)
+#mriqc.FmriQcOverview('3TM','/cubric/collab/108_QA/QA3TM/fmriqc_glover/', email_summary=False)
 
