@@ -904,7 +904,7 @@ class QcOverview():
                 if '.dat' in ff:
                     self.dat_files.append(os.path.join(root,ff))  
         run_analysis = self.check_analysis_required()
-        
+       
         # this launches the summary analysis 
         if run_analysis:
             print('Running summary analysis on' + path_to_reports)
@@ -1016,8 +1016,12 @@ class FmriQcOverview(QcOverview):
         # year_temp could be YY (VB, VD, VE) or YYYY (XA)
         date_pd = date_pd.rename(columns={0:'year_temp',1:'month',2:'day'})
         date_pd = date_pd.astype('int16')
-        date_pd['year']=date_pd['year_temp'][date_pd['year_temp']<100].apply(lambda x:x+2000)
-        date_pd['year']=date_pd['year_temp'][date_pd['year_temp']>=100].apply(lambda x:x) # don't add 2000
+        def four_digit_year(yr):
+            if yr < 100:
+                return(yr + 2000)
+            else:
+                return(yr)
+        date_pd['year']=date_pd['year_temp'].apply(four_digit_year)
         date_pd.pop('year_temp')
         self.oview_qc['date']=pd.to_datetime(date_pd)
         self.oview_qc['scanner'] = self.oview_qc['File'].str.split('-', expand=True)[3].str.split('_', expand=True)[8]
