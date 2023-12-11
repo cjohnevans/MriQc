@@ -226,7 +226,7 @@ def data_unzip():
                                      stdout=subprocess.DEVNULL)
                     except:
                         print('!!!WARNING: Unzipping ' + zip_file + ' failed')
-                        subprocess.run(['rmdir', dir_xnat_sess])
+                        subprocess.run(['rm -r', dir_xnat_sess])
 
         # tidy up temp directories
         shutil.rmtree(dicom_temp)
