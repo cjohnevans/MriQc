@@ -11,4 +11,4 @@ sys.path.append('/home/sapje1/code/python_mrobjects/qc')
 import xnat_fetch_qc as xnqc
 
 # get new qc data from xnat
-xnqc.update_xnat_new()
+xnqc.data_unzip()
