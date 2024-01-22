@@ -216,14 +216,14 @@ def data_unzip():
     print('\nChecking for XNAT zip files in ' + data_path)
     for ppt, ppt_xn in qcsubj.items():
         #set up temporary dicom directory (scanner level)
-        dicom_temp = os.path.join(data_path,ppt,'dicom_temp')
-        if not os.path.isdir(dicom_temp):
-            os.mkdir(dicom_temp)
+        dicom_root = os.path.join(data_path,ppt,'dicom_temp')
+        if not os.path.isdir(dicom_root):
+            os.mkdir(dicom_root)
             
         # set up nifti directory (scanner level)    
-        nifti_temp = os.path.join(data_path, ppt,'nifti')
-        if not os.path.isdir(nifti_temp):
-            os.mkdir(nifti_temp)        
+        nifti_root = os.path.join(data_path, ppt,'nifti')
+        if not os.path.isdir(nifti_root):
+            os.mkdir(nifti_root)        
         # directory of downloaded zip files
         dir_zip = os.path.join(data_path, ppt, 'zip')
         fls = os.listdir(dir_zip)
@@ -231,51 +231,66 @@ def data_unzip():
             if 'XNAT' in ff[0:4] and '.zip' in ff[-4:]:
                 exp_id = ff[:-4]
                 zip_file = os.path.join(dir_zip,ff)
-                # data structure is dir_dicom_temp/dir_scan_sess/scans/
-                dir_dicom_temp = os.path.join(dicom_temp,exp_id)
-                dir_nifti = os.path.join(nifti_temp, exp_id)
+                # data structure is dicom_exp_dir/dir_scan_sess/scans/
+                dicom_exp_dir = os.path.join(dicom_root,exp_id)
+                nifti_exp_dir = os.path.join(nifti_root, exp_id)
                 abort_dcm2niix = False #default is to run dcm2niix unless failure with zip
                 
                 # skip if unpacked directory exists
-                if os.path.isdir(dir_dicom_temp) or os.path.isdir(dir_nifti): 
-                    print(ff, ': Previous unzip exists.  Skipping unzip')
+                if os.path.isdir(dicom_exp_dir) or os.path.isdir(nifti_exp_dir): 
+                    print(ff, 'Skipping  - previous unzip or nifti exists in ', ppt)
                 else:
-                    print('Unzipping ' + zip_file + ' to ' + dir_dicom_temp)
+                    # print('Unzipping ' + zip_file + ' to ' + dicom_exp_dir)
                     try:
-                        sb = subprocess.run(['unzip', '-q', '-d', dir_dicom_temp, zip_file])
+                        # suppress output - errors are verbose
+                        sb = subprocess.run(['unzip', '-q', '-d', dicom_exp_dir, zip_file], \
+                                            stdout=subprocess.DEVNULL, \
+                                            stderr=subprocess.DEVNULL)
                         # fails if unzipping fails
-                        dir_scan_sess = os.path.join(dir_dicom_temp,os.listdir(dir_dicom_temp)[0],'scans')
                     except:
-                        print('!!!WARNING: Unzipping ' + zip_file + ' failed')
+                        print(ff, '!!! ERROR - Unzipping ' + zip_file + ' failed')
                         abort_dcm2niix = True
                         # zip file is bad - remove.  It may work on a later attempt.
                         #subprocess.run(['rm', zip_file])
 
-                    # skip if nifti directory exists
-                    # duplication:  this has already been checked
-                    if os.path.isdir(dir_nifti):
-                        if len(os.listdir(dir_nifti)):
-                            print(dir_nifti + ' not empty.')
-                            abort_dcm2niix = True
-                    
-                    if abort_dcm2niix:
-                        print('Skipping dcm2niix')
-                    else:
-                        # check if it's been unzipped before
-                        os.mkdir(dir_scan_nifti)
-                        print('Running dcm2niix and outputing to  ' + dir_scan_nifti)
-                        sb = subprocess.run(['dcm2niix', \
-                                     '-f', '%i_%s_%d',\
-                                     '-o', dir_scan_nifti,
-                                     dir_scan_sess] , \
-                                     stdout=subprocess.DEVNULL)
+def nifti_convert():
+    '''
+    convert files in dicom_temp dir to nifti.  
+    work in progress
 
-        # tidy up temp directories
-        #shutil.rmtree(dicom_temp)
-        #shutil.rmtree(dir_zip)
-        # but make sure that the directories exists, in case of errors
-        #os.mkdir(dicom_temp)
-        #os.mkdir(dir_zip) 
+    Returns
+    -------
+    None.
+
+    '''
+    
+    for ppt, ppt_xn in qcsubj.items():
+        #set up temporary dicom directory (scanner level)
+        dicom_root = os.path.join(data_path, ppt,'dicom_temp')
+        nifti_root = os.path.join(data_path, ppt,'nifti')
+        
+        # need equivalent of this..
+        for ff in fls:
+            if 'XNAT' in ff[0:4]:
+
+                exp_id = ff
+
+                dicom_exp_dir = os.path.join(dicom_root,exp_id)
+                dicom_scan_dir = os.path.join(dicom_exp_dir,os.listdir(dicom_exp_dir[0],'scans'))
+                nifti_exp_dir = os.path.join(nifti_root, exp_id)
+
+                # check if niftis exist
+                if os.path.isdir(nifti_exp_dir): 
+                    print(ff, 'Skipping  - previous unzip or nifti exists in ', ppt)
+                else:
+                    os.mkdir(nifti_exp_dir)
+                print('Running dcm2niix and outputing to  ' + nifti_exp_dir)
+                sb = subprocess.run(['dcm2niix', \
+                            '-f', '%i_%s_%d',\
+                            '-o', nifti_exp_dir,
+                            dir_scan_sess] , \
+                            stdout=subprocess.DEVNULL)
+
         
         
 def proc_qc(analyse_all=False):
@@ -371,4 +386,4 @@ def fetch_qc(download=True, unzip=True, proc_fmri=True):
     if unzip:
         data_unzip()
     if proc_fmri:
-        proc_fmriqc()
+        proc_qc()
