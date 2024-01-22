@@ -12,3 +12,4 @@ import xnat_fetch_qc as xnqc
 
 # get new qc data from xnat
 xnqc.data_unzip()
+xnqc.nifti_convert()

@@ -231,7 +231,7 @@ def data_unzip():
             if 'XNAT' in ff[0:4] and '.zip' in ff[-4:]:
                 exp_id = ff[:-4]
                 zip_file = os.path.join(dir_zip,ff)
-                # data structure is dicom_exp_dir/dir_scan_sess/scans/
+                # data structure is dicom_exp_dir/dicom_scan_dir/scans/
                 dicom_exp_dir = os.path.join(dicom_root,exp_id)
                 nifti_exp_dir = os.path.join(nifti_root, exp_id)
                 
@@ -244,6 +244,7 @@ def data_unzip():
                         sb = subprocess.run(['unzip', '-q', '-d', dicom_exp_dir, zip_file], \
                                             stdout=subprocess.DEVNULL, \
                                             stderr=subprocess.DEVNULL)
+                        # this fails if unzip fails
                         os.listdir(dicom_exp_dir)
                     except:
                         print(ff, '!!! ERROR - Unzipping ' + zip_file + ' failed')
@@ -269,11 +270,9 @@ def nifti_convert():
         # need equivalent of this..
         for ff in fls:
             if 'XNAT' in ff[0:4]:
-
                 exp_id = ff
-
                 dicom_exp_dir = os.path.join(dicom_root,exp_id)
-                dicom_scan_dir = os.path.join(dicom_exp_dir,os.listdir(dicom_exp_dir[0],'scans'))
+                dicom_scan_dir = os.path.join(dicom_exp_dir,os.listdir(dicom_exp_dir)[0],'scans')
                 nifti_exp_dir = os.path.join(nifti_root, exp_id)
 
                 # check if niftis exist
@@ -285,9 +284,8 @@ def nifti_convert():
                 sb = subprocess.run(['dcm2niix', \
                             '-f', '%i_%s_%d',\
                             '-o', nifti_exp_dir,
-                            dir_scan_sess] , \
+                            dicom_scan_dir] , \
                             stdout=subprocess.DEVNULL)
-
         
         
 def proc_qc(analyse_all=False):
