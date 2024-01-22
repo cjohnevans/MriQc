@@ -234,24 +234,20 @@ def data_unzip():
                 # data structure is dicom_exp_dir/dir_scan_sess/scans/
                 dicom_exp_dir = os.path.join(dicom_root,exp_id)
                 nifti_exp_dir = os.path.join(nifti_root, exp_id)
-                abort_dcm2niix = False #default is to run dcm2niix unless failure with zip
                 
                 # skip if unpacked directory exists
                 if os.path.isdir(dicom_exp_dir) or os.path.isdir(nifti_exp_dir): 
                     print(ff, 'Skipping  - previous unzip or nifti exists in ', ppt)
                 else:
-                    # print('Unzipping ' + zip_file + ' to ' + dicom_exp_dir)
                     try:
                         # suppress output - errors are verbose
                         sb = subprocess.run(['unzip', '-q', '-d', dicom_exp_dir, zip_file], \
                                             stdout=subprocess.DEVNULL, \
                                             stderr=subprocess.DEVNULL)
-                        # fails if unzipping fails
+                        os.listdir(dicom_exp_dir)
                     except:
                         print(ff, '!!! ERROR - Unzipping ' + zip_file + ' failed')
-                        abort_dcm2niix = True
-                        # zip file is bad - remove.  It may work on a later attempt.
-                        #subprocess.run(['rm', zip_file])
+
 
 def nifti_convert():
     '''
@@ -268,7 +264,8 @@ def nifti_convert():
         #set up temporary dicom directory (scanner level)
         dicom_root = os.path.join(data_path, ppt,'dicom_temp')
         nifti_root = os.path.join(data_path, ppt,'nifti')
-        
+        fls = os.listdir(dicom_root)
+
         # need equivalent of this..
         for ff in fls:
             if 'XNAT' in ff[0:4]:
