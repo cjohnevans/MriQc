@@ -48,7 +48,7 @@ def update_downloaded():
     # regenerate list of downloaded datasets
     exp_done = []
     
-    print('Checking for downloaded data in ' + data_path)
+    print('update_downloaded: Checking for downloaded nifti data in ' + data_path)
     for qd in qcsubj.keys():
         qdir = os.path.join(data_path,qd,'nifti')
         list1 = os.listdir(qdir)
@@ -61,16 +61,17 @@ def update_downloaded():
                 if len(os.listdir(os.path.join(qdir,l))) > 0:
                     exp_done.append(l)
                     exp_done_ppt.append(l)
-        print('Found ' + str(len(exp_done_ppt)) + ' downloaded datasets for ' + qd)
+        print(qd + ': Found ' + str(len(exp_done_ppt)) + ' downloaded nifti datasets in ' + qdir)
         exp_done_ppt.sort()
-        print(exp_done_ppt)
+        #print(exp_done_ppt)
 
-    print('Found ' + str(len(exp_done)) + ' total downloaded datasets')
+    #print('Found ' + str(len(exp_done)) + ' total downloaded datasets')
     with open(download_done,'w') as f:
         for line in exp_done:
             f.write(line + '\n')
+    print('File ' + download_done + ' updated')
 
-def update_xnat_new(update_local=True):
+def update_xnat_new():
     """
     update_xnat_new()
     ---------------
@@ -89,10 +90,7 @@ def update_xnat_new(update_local=True):
 
     """
 
-#   update the list of downloaded and converted sessions
-    if update_local:
-        update_downloaded()
-
+#   load the list of downloaded and converted sessions
     with open(download_done, 'r') as f:
         tmp = f.readlines()
     exp_downloaded = []
@@ -100,7 +98,7 @@ def update_xnat_new(update_local=True):
         exp_downloaded.append(line.replace('\n',''))
         
     # if no authentication provided, xnat will look to .netrc file for authentication
-    print('\nChecking for new data on XNAT')
+    print('\nupdate_xnat_new: Checking for new data on XNAT')
     
     with xnat.connect('https://xnat.cubric.cf.ac.uk') as session:
         with open(download_new, 'w') as fnew:
@@ -111,7 +109,6 @@ def update_xnat_new(update_local=True):
                 if qc_subj_xn in s:
                     subj_id = subj[s].label  # subj_id is QA3TM etc.. 
                     qc_exp = subj[s].experiments
-                    print('Found ' + str(len(qc_exp)) + ' sessions on XNAT for ' + subj_id)
                     # e is all qc experiments for a given subject (=scanner)
                     exp_to_download = []
                     
@@ -123,14 +120,18 @@ def update_xnat_new(update_local=True):
                     for e in qc_exp:
                         # check xnat experiement ids against those previously downloaded
                         if e not in exp_downloaded:
-                            print('Session ' + e + ' is new.')
+                            #print('Session ' + e + ' is new.')
                             exp_to_download.append(e)
                             
-                    print(str(len(exp_to_download)) + ' new session(s) are available\n')
+                    print(subj_id + ': ' + str(len(qc_exp)) + ' sessions on XNAT, ' + \
+                          str(len(exp_to_download)) + ' new session(s) are available')
+                   
                     with open(download_new, 'a') as fnew:
                         fnew.write('#' + qc_subj_name + '\n')
                         fnew.writelines(line+'\n' for line in exp_to_download)
     session.disconnect()
+    print('File ' + download_new + ' updated')
+
 
 def xnat_download():
     """
@@ -201,7 +202,7 @@ def data_unzip(unzip=True, remove_invalid_file=False):
     None.
 
     """
-    print('\nChecking for XNAT zip files in ' + data_path)
+    print('\ndata_unzip:  Checking for XNAT zip files in ' + data_path)
     for ppt, ppt_xn in qcsubj.items():
         #set up temporary dicom directory (scanner level)
         dicom_root = os.path.join(data_path,ppt,'dicom_temp')
@@ -250,8 +251,6 @@ def empty_nifti_dir(nifti_dir, remove=False):
     return a list of empty directories - XNAT download failures
     """
     dirs = os.listdir(nifti_dir)
-    print('Directories in ', nifti_dir, ':')
-    print(dirs)
     
     empty_dirs = []
     
@@ -261,9 +260,9 @@ def empty_nifti_dir(nifti_dir, remove=False):
             empty_dirs.append(dd)
             if remove == True:
                 os.rmdir(os.path.join(nifti_dir,dd))
-    print('Empty directories :')
-    print(empty_dirs)
-    if remove == True:
+    print(nifti_dir + ' has ' + str(len(dirs)) + ' directories, and ' + str(len(empty_dirs)) + ' empty directories')
+
+    if len(empty_dirs) > 0 and remove == True:
         print("Empty directories removed")
 
 
@@ -284,6 +283,8 @@ def nifti_convert():
     # not sure if I want this... better to check for absent dirs
     # rather than empty dirs
     
+    print('\nnifti_convert: Checking for dicom data in ' + data_path)
+    
     for ppt, ppt_xn in qcsubj.items():
         #set up temporary dicom directory (scanner level)
         dicom_root = os.path.join(data_path, ppt,'dicom_temp')
@@ -303,7 +304,7 @@ def nifti_convert():
                     print(ff, 'Skipping  - previous unzip or nifti exists in ', ppt)
                 else:
                     os.mkdir(nifti_exp_dir)
-                    print('Running dcm2niix and outputing to  ' + nifti_exp_dir)
+                    #print(ff, 'Running dcm2niix and outputing to  ' + nifti_exp_dir)
                     sb = subprocess.run(['dcm2niix', \
                             '-f', '%i_%s_%d',\
                             '-o', nifti_exp_dir,
