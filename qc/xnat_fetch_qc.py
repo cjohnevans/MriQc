@@ -169,7 +169,7 @@ def xnat_download():
                             zip_path = os.path.join(dir_zip, ed + '.zip')
                             print('Downloading ' + ed + ' to ' + zip_path)
                             try:
-                                qc_exp[ed].download(zip_path)
+                                qc_exp[ed].scans['GloverGSQAP'].download(zip_path)
                             except:
                                 print('!!!WARNING: Download of ' + ed + ' failed')
   
