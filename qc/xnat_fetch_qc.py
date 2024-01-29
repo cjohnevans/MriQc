@@ -171,32 +171,20 @@ def xnat_download():
                                 qc_exp[ed].download(zip_path)
                             except:
                                 print('!!!WARNING: Download of ' + ed + ' failed')
- 
-    
-def empty_nifti_dir(nifti_dir):
-    """
-    check for null directories in nifti_dir
-    return a list of empty directories - XNAT download failures
-    """
-    dirs = os.listdir(nifti_dir)
-    print(nifti_dir)
-    print(dirs)
-    
-    empty_dirs = []
-    
-    for dd in dirs:
-        ff = os.listdir(os.path.join(nifti_dir,dd))
-        if len(ff) == 0:
-            empty_dirs.append(dd)
-            os.rmdir(os.path.join(nifti_dir,dd))
-    print(empty_dirs)
-    
-    
+  
 
-def data_unzip():
+def data_unzip(unzip=True, remove_invalid_file=False):
     """
     data_unzip()
     ------------
+    
+    unzip = Boolean
+      if True performs the extraction, if False, runs a zip file test (unzip -t)
+      without extracting the dicoms.
+      
+    remove_invalid_file = Boolean
+       if True, remove the .zip file following a failed check or attempted unzip
+       if False, ignore the failed zip file.
     
     Following on from xnat_download(), check the experiment .zip files in DATA_PATH/SUBJECT_NAME/zip
     then unzip and convert to nifti
@@ -217,13 +205,11 @@ def data_unzip():
     for ppt, ppt_xn in qcsubj.items():
         #set up temporary dicom directory (scanner level)
         dicom_root = os.path.join(data_path,ppt,'dicom_temp')
-        if not os.path.isdir(dicom_root):
-            os.mkdir(dicom_root)
-            
-        # set up nifti directory (scanner level)    
         nifti_root = os.path.join(data_path, ppt,'nifti')
-        if not os.path.isdir(nifti_root):
-            os.mkdir(nifti_root)        
+
+        if not os.path.isdir(dicom_root):
+            os.mkdir(dicom_root)           
+   
         # directory of downloaded zip files
         dir_zip = os.path.join(data_path, ppt, 'zip')
         fls = os.listdir(dir_zip)
@@ -234,40 +220,77 @@ def data_unzip():
                 # data structure is dicom_exp_dir/dicom_scan_dir/scans/
                 dicom_exp_dir = os.path.join(dicom_root,exp_id)
                 nifti_exp_dir = os.path.join(nifti_root, exp_id)
-                
-                # skip if unpacked directory exists
+                # perform unzipping, but skip if unpacked directory exists
                 if os.path.isdir(dicom_exp_dir) or os.path.isdir(nifti_exp_dir): 
                     print(ff, 'Skipping  - previous unzip or nifti exists in ', ppt)
                 else:
-                    try:
+                    if unzip == True:
                         # suppress output - errors are verbose
                         sb = subprocess.run(['unzip', '-q', '-d', dicom_exp_dir, zip_file], \
-                                            stdout=subprocess.DEVNULL, \
-                                            stderr=subprocess.DEVNULL)
-                        # this fails if unzip fails
-                        os.listdir(dicom_exp_dir)
-                    except:
-                        print(ff, '!!! ERROR - Unzipping ' + zip_file + ' failed')
+                                        stdout=subprocess.DEVNULL, \
+                                        stderr=subprocess.DEVNULL)
+                    else: # check, but don't unzip files
+                        sb = subprocess.run(['unzip', '-tq', zip_file], \
+                                    stdout=subprocess.DEVNULL, \
+                                    stderr=subprocess.DEVNULL)    
+                            
+                    if sb.returncode == 0:
+                        # returns 0 if no errors during unzip 
+                        print(ff, 'OK        - Unzipping ' + zip_file + ' succeeded')
+                    else:
+                        if remove_invalid_file:
+                            os.remove(zip_file)
+                            print(ff, '!!! ERROR - Unzipping ' + zip_file + ' failed. File removed.')
+                        else:
+                            print(ff, '!!! ERROR - Unzipping ' + zip_file + ' failed. File not removed')
+
+def empty_nifti_dir(nifti_dir, remove=False):
+    """
+    check for null directories in nifti_dir
+    return a list of empty directories - XNAT download failures
+    """
+    dirs = os.listdir(nifti_dir)
+    print('Directories in ', nifti_dir, ':')
+    print(dirs)
+    
+    empty_dirs = []
+    
+    for dd in dirs:
+        ff = os.listdir(os.path.join(nifti_dir,dd))
+        if len(ff) == 0:
+            empty_dirs.append(dd)
+            if remove == True:
+                os.rmdir(os.path.join(nifti_dir,dd))
+    print('Empty directories :')
+    print(empty_dirs)
+    if remove == True:
+        print("Empty directories removed")
 
 
 def nifti_convert():
     '''
     convert files in dicom_temp dir to nifti.  
     work in progress
+    
+    Keep dicom_temp clean - delete after an unpacking attempt.
 
     Returns
     -------
     None.
 
     '''
+
+    # set up nifti directory (scanner level)    
+    # not sure if I want this... better to check for absent dirs
+    # rather than empty dirs
     
     for ppt, ppt_xn in qcsubj.items():
         #set up temporary dicom directory (scanner level)
         dicom_root = os.path.join(data_path, ppt,'dicom_temp')
         nifti_root = os.path.join(data_path, ppt,'nifti')
-        fls = os.listdir(dicom_root)
+        empty_nifti_dir(nifti_root, remove=True) # clean the nifti dir before starting
 
-        # need equivalent of this..
+        fls = os.listdir(dicom_root)
         for ff in fls:
             if 'XNAT' in ff[0:4]:
                 exp_id = ff
@@ -275,19 +298,24 @@ def nifti_convert():
                 dicom_scan_dir = os.path.join(dicom_exp_dir,os.listdir(dicom_exp_dir)[0],'scans')
                 nifti_exp_dir = os.path.join(nifti_root, exp_id)
 
-                # check if niftis exist
+                # check if niftis exist - sufficient as we've cleaned up any empty dirs.
                 if os.path.isdir(nifti_exp_dir): 
                     print(ff, 'Skipping  - previous unzip or nifti exists in ', ppt)
                 else:
                     os.mkdir(nifti_exp_dir)
-                print('Running dcm2niix and outputing to  ' + nifti_exp_dir)
-                sb = subprocess.run(['dcm2niix', \
+                    print('Running dcm2niix and outputing to  ' + nifti_exp_dir)
+                    sb = subprocess.run(['dcm2niix', \
                             '-f', '%i_%s_%d',\
                             '-o', nifti_exp_dir,
                             dicom_scan_dir] , \
                             stdout=subprocess.DEVNULL)
-        
-        
+                    if sb.returncode == 0:
+                        # returns 0 if no errors during unzip 
+                        print(ff, 'OK        - Convert from ' + dicom_exp_dir + ' succeeded')
+                    else:
+                        print(ff, '!!! ERROR - Convert ' + dicom_exp_dir + ' failed.  Error=' + sb.returncode)
+                
+             
 def proc_qc(analyse_all=False):
     """
     proc_fmriqc(analyse_all=False):

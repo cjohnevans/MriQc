@@ -11,5 +11,5 @@ sys.path.append('/home/sapje1/code/python_mrobjects/qc')
 import xnat_fetch_qc as xnqc
 
 # get new qc data from xnat
-xnqc.data_unzip()
+xnqc.data_unzip(unzip=True, remove_invalid_file=True)
 xnqc.nifti_convert()
