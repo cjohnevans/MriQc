@@ -1,6 +1,8 @@
 #!/bin/bash
 # find summary files from the past day, send to QA channel on MR teams
 newfiles=`find /cubric/collab/108_QA -ipath '*glover*fmriqc_latest.txt' -ctime -1 | xargs`
+# always send, even if old
+newfiles=`find /cubric/collab/108_QA -ipath '*glover*fmriqc_latest.txt'  | xargs`
 
 for ff in $newfiles
 do
@@ -9,17 +11,31 @@ do
     name_plot=`echo $name_noext`.png
     scanner=`echo $name_short | awk -F_ '{print $1}'`
     
+# to teams
 # need to add plots and format title better
-#    mailx -s $name_short -a $name_plot c.john.evans@gmail.com < $ff;
+#    if [ "$scanner" == "3TW" ]; then  
+#        echo "mailx -s $scanner -a $name_plot 5ed88dc2.cf.onmicrosoft.com@emea.teams.ms  < $ff";
+#    elif [ "$scanner" == "3TE" ]; then 
+#        mailx -s $scanner -a $name_plot 3348574b.cf.onmicrosoft.com@emea.teams.ms  < $ff;
+#    elif [ "$scanner" == "7T" ]; then 
+#        mailx -s $scanner -a $name_plot d6e057f1.cf.onmicrosoft.com@emea.teams.ms  < $ff;
+#    elif [ "$scanner" == "3TM" ]; then 
+#        mailx -s $scanner -a $name_plot 76187b6b.cf.onmicrosoft.com@emea.teams.ms  < $ff;
+#    fi
+
+# to me
     if [ "$scanner" == "3TW" ]; then  
-        mailx -s $scanner -a $name_plot 5ed88dc2.cf.onmicrosoft.com@emea.teams.ms  < $ff;
+        mailx -s $scanner -a $name_plot evansj31@cardiff.ac.uk  < $ff;
     elif [ "$scanner" == "3TE" ]; then 
-        mailx -s $scanner -a $name_plot 3348574b.cf.onmicrosoft.com@emea.teams.ms  < $ff;
+        mailx -s $scanner -a $name_plot evansj31@cardiff.ac.uk  < $ff;
     elif [ "$scanner" == "7T" ]; then 
-        mailx -s $scanner -a $name_plot d6e057f1.cf.onmicrosoft.com@emea.teams.ms  < $ff;
+        mailx -s $scanner -a $name_plot evansj31@cardiff.ac.uk  < $ff;
     elif [ "$scanner" == "3TM" ]; then 
-        mailx -s $scanner -a $name_plot 76187b6b.cf.onmicrosoft.com@emea.teams.ms  < $ff;
+        mailx -s $scanner -a $name_plot evansj31@cardiff.ac.uk  < $ff;
     fi
+
+
+
 done
 
 spikefiles=`find /cubric/collab/108_QA -ipath '*spike_stats.png' -ctime -1 | xargs`
