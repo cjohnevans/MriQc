@@ -25,13 +25,13 @@ do
 
 # to me
     if [ "$scanner" == "3TW" ]; then  
-        mailx -s $scanner -a $name_plot evansj31@cardiff.ac.uk  < $ff;
+        mailx -s "mriqc - 3TW" -a $name_plot evansj31@cardiff.ac.uk  < $ff;
     elif [ "$scanner" == "3TE" ]; then 
-        mailx -s $scanner -a $name_plot evansj31@cardiff.ac.uk  < $ff;
+        mailx -s "mriqc - 3TE" -a $name_plot evansj31@cardiff.ac.uk  < $ff;
     elif [ "$scanner" == "7T" ]; then 
-        mailx -s $scanner -a $name_plot evansj31@cardiff.ac.uk  < $ff;
+        mailx -s "mriqc - 7T" -a $name_plot evansj31@cardiff.ac.uk  < $ff;
     elif [ "$scanner" == "3TM" ]; then 
-        mailx -s $scanner -a $name_plot evansj31@cardiff.ac.uk  < $ff;
+        mailx -s "mriqc - 3TM"  -a $name_plot evansj31@cardiff.ac.uk  < $ff;
     fi
 
 
