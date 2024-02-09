@@ -1,42 +1,10 @@
 #!/bin/bash
-# find summary files from the past day, send to QA channel on MR teams
-newfiles=`find /cubric/collab/108_QA -ipath '*glover*fmriqc_latest.txt' -ctime -1 | xargs`
-# always send, even if old
-newfiles=`find /cubric/collab/108_QA -ipath '*glover*fmriqc_latest.txt'  | xargs`
 
-for ff in $newfiles
-do
-    name_short=`echo $ff | awk -F ary/ '{print $2}' | awk -F. '{print $1}'`
-    name_noext=`echo $ff | awk -F. '{print $1}'`
-    name_plot=`echo $name_noext`.png
-    scanner=`echo $name_short | awk -F_ '{print $1}'`
-    
-# to teams
-# need to add plots and format title better
-#    if [ "$scanner" == "3TW" ]; then  
-#        echo "mailx -s $scanner -a $name_plot 5ed88dc2.cf.onmicrosoft.com@emea.teams.ms  < $ff";
-#    elif [ "$scanner" == "3TE" ]; then 
-#        mailx -s $scanner -a $name_plot 3348574b.cf.onmicrosoft.com@emea.teams.ms  < $ff;
-#    elif [ "$scanner" == "7T" ]; then 
-#        mailx -s $scanner -a $name_plot d6e057f1.cf.onmicrosoft.com@emea.teams.ms  < $ff;
-#    elif [ "$scanner" == "3TM" ]; then 
-#        mailx -s $scanner -a $name_plot 76187b6b.cf.onmicrosoft.com@emea.teams.ms  < $ff;
-#    fi
+# explicit definition of png files.  use imagemagick's convert to merge the pngs into a single file 
+convert -append /cubric/collab/108_QA/QA3TM/fmriqc_glover/summary/3TM_fmriqc_latest.png /cubric/collab/108_QA/QA7T/fmriqc_glover/summary/7T_fmriqc_latest.png /cubric/collab/108_QA/QA3TE/fmriqc_glover/summary/3TE_fmriqc_latest.png  /cubric/collab/108_QA/QA3TW/fmriqc_glover/summary/3TW_fmriqc_latest.png  /cubric/collab/108_QA/fmriqc_latest.png
 
-# to me
-    if [ "$scanner" == "3TW" ]; then  
-        mailx -s "mriqc - 3TW" -a $name_plot evansj31@cardiff.ac.uk  < $ff;
-    elif [ "$scanner" == "3TE" ]; then 
-        mailx -s "mriqc - 3TE" -a $name_plot evansj31@cardiff.ac.uk  < $ff;
-    elif [ "$scanner" == "7T" ]; then 
-        mailx -s "mriqc - 7T" -a $name_plot evansj31@cardiff.ac.uk  < $ff;
-    elif [ "$scanner" == "3TM" ]; then 
-        mailx -s "mriqc - 3TM"  -a $name_plot evansj31@cardiff.ac.uk  < $ff;
-    fi
+/home/sapje1/code/python_mrobjects/qc/autoqc_status.py | mailx -r mriqc@cardiff.ac.uk -s "fmriqc (Glover)" -a /cubric/collab/108_QA/fmriqc_latest.png evansj31@cardiff.ac.uk
 
-
-
-done
 
 spikefiles=`find /cubric/collab/108_QA -ipath '*spike_stats.png' -ctime -1 | xargs`
 
