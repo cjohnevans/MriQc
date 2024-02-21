@@ -1,0 +1,27 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Wed Feb 21 20:07:07 2024
+
+@author: sapje1
+"""
+
+import nibabel as nib
+import os, sys
+import numpy as np
+sys.path.append('/home/sapje1/code/MriQc')
+import mriqc
+
+os.chdir('/cubric/scratch/sapje1/2024/240220_quickQC/2024_02_19-11_25_57-STD-1_3_12_2_1107_5_99_3/nifti')
+nii_files = os.listdir()
+nii1 = nib.load(nii_files[0])
+im1in = nii1.get_fdata(dtype=np.float64)
+print(im1in.shape)
+
+snrcalc = mriqc.BasicQc()
+snrcalc.snr_nema(nii_files[0], nii_files[1])
+
+
+os.chdir('/home/sapje1/scratch_sapje1/2024/240220_quickQC/24_02_16-14_07_20-STD-1_3_12_2_1107_5_2_0_19950/nifti')
+connectom_files = os.listdir()
+snrcalc.snr_nema_multivol(connectom_files[0])
