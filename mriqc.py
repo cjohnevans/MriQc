@@ -52,7 +52,18 @@ class BasicQc:
         self.ph_radius = np.min([row_width, col_width])/2
     
     def mask_phantom(self, R_mask=None, plot_mask=False):
-        self.mask_image(region='in', R_mask=R_mask, plot_mask=plot_mask)
+        '''
+        mask_phantom:  create mask of the phantom - i.e. mask out the exterior
+        '''
+        mask = self.mask_image(region='in', R_mask=R_mask, plot_mask=plot_mask)
+        return mask
+    
+    def mask_empty(self, R_mask=None, plot_mask=False):
+        '''
+        mask_empty: create mask of empty space around phantom (for noise calcs)
+        '''
+        mask = self.mask_image(region='out', R_mask=R_mask, plot_mask=plot_mask)
+        return mask
         
     def mask_image(self, region='in', R_mask=None, plot_mask=False):
         '''
@@ -91,9 +102,9 @@ class BasicQc:
         row_grid2 = row_grid[0:self.im1.shape[0], 0:self.im1.shape[1]]
         col_sqr = np.power(col_grid2,2)
         row_sqr = np.power(row_grid2,2)
-        if region = 'out':
+        if region == 'out':
             mask = (col_sqr + row_sqr) > np.power(R_mask,2)
-        else: # region = 'in'
+        else: # region == 'in'
             mask = (col_sqr + row_sqr) < np.power(R_mask,2)
         
         
@@ -135,7 +146,7 @@ class BasicQc:
 
         im1in = nii1.get_fdata(dtype=np.float64)
         im2in = nii2.get_fdata(dtype=np.float64)
-        self.snr_calc(im1in, im2in)
+        self.snr_nema_2image(im1in, im2in)
         
     def snr_nema_multivol(self, nii_file):
         '''
@@ -158,11 +169,14 @@ class BasicQc:
         img = nii.get_fdata(dtype=np.float64)
         im1in = img[:,:,:,0]
         im2in = img[:,:,:,1]
-        self.snr_calc(im1in, im2in)
+        self.snr_nema_2image(im1in, im2in)
         
-    def snr_calc(self, im1in, im2in):
+    def snr_nema_2image(self, im1in, im2in):
         '''
-        
+        snr_nema_2image(im1in,
+                        im2in)
+        Calculate SNR using the NEMA 2 image method: Two repeat images and 
+        estimate SNR from the mean and difference images.
 
         Parameters
         ----------
@@ -197,26 +211,38 @@ class BasicQc:
         # NEMA recommends using mask that's 75% of the area of the visible 
         # phantom, so that's sqrt(0.75) of the radius
         mask_radius = np.power(0.75,0.5) * self.ph_radius
-        snr_mask = self.mask_phantom(mask_radius)
-        
+        phantom_mask = self.mask_phantom(mask_radius)
+ 
+    
+        # NEMA Method 1: Use two images, estimate noise from subtraction
         im1_im2 = 0.5 * (self.im1 + self.im2)
-        mean_signal = np.mean(im1_im2[snr_mask==True])
+        mean_signal = np.mean(im1_im2[phantom_mask==True])
         # subtraction for noise calculation
         self.im_subtract = self.im1 - self.im2
-        im_sub_mask = self.im_subtract[snr_mask==True] #unravelled
+        im_sub_mask = self.im_subtract[phantom_mask==True] #unravelled
         std_signal = np.std(im_sub_mask)
         self.snr = np.power(2, 0.5) * mean_signal / std_signal
         self.mean_signal = mean_signal
         print('SNR (NEMA) {:.6} '.format(self.snr))
+        
+        # NEMA Method 2 variant: Use single image, estimate noise from outside phantom
+        #   this includes most of the region outside the phantom, so will include
+        #   ghosting.
+        noise_radius = 1.2 * self.ph_radius # estimated 20% larger than phantom
+        noise_mask = self.mask_empty(noise_radius)       
+        im_noise = self.im2[noise_mask==True]
+        sd_noise = np.std(im_noise)
+        self.snr_background = 0.66 * np.mean(self.im1[phantom_mask==True]) / sd_noise
 
         fig = plt.figure(figsize=(10,5))
         ax = fig.subplots(2,2)
         ax[0][0].imshow(self.im1,cmap='jet')
         ax[0][1].imshow(self.im2,cmap='jet')
-        ax[1][0].imshow(self.im_subtract*snr_mask ,cmap='jet')       
+        ax[1][0].imshow(self.im_subtract ,cmap='jet')       
         ax[1][1].plot(self.im1[self.im_centre[1],:])  # dim0 in blue
         ax[1][1].plot(self.im1[:,self.im_centre[0]])  # dim1 in orange
         #ax[1][1].plot(im_sub_mask)
+        
         
     def uniformity_nema(self, f1):
         """
