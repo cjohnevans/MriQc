@@ -166,16 +166,27 @@ def xnat_download():
                     
                     for ed in qc_exp:   #loop over xnat experiments for this subject
                         if ed in exp_new:  # download if new
-                            zip_path = os.path.join(dir_zip, ed + '.zip')
-                            print('Downloading ' + ed + ' to ' + zip_path)
-                            try:
-                                qc_exp[ed].scans['GloverGSQAP'].download(zip_path)
-                            except:
-                                print('No GloverGSQAP in ' + ed )
-                            try:
-                                qc_exp[ed].scans['quick_SNR_gre3D'].download(zip_path)
-                            except:
-                                print('No quick_SNR in ' + ed )
+                            ed_series = qc_exp[ed].scans
+                            for i_series in range(len(ed_series)):
+                                series_description = qc_exp[ed].scans.get(i_series).series_description
+                                if 'quick_SNR_gre3D' or 'GloverGSQAP' or 'spike_' in series_description:
+                                    zip_path = os.path.join(dir_zip + '/' \
+                                                            + ed \
+                                                            + '_' + str(i_series) + '_' \
+                                                            + series_description \
+                                                            + '.zip')
+                                    print('Downloading ' + ed + ' to ' + zip_path)
+                                    qc_exp[ed].scans[i_series].download(zip_path)
+                                    
+                                
+                            # try:
+                            #     qc_exp[ed].scans['GloverGSQAP'].download(zip_path)
+                            # except:
+                            #     print('No GloverGSQAP in ' + ed )
+                            # try:
+                            #     qc_exp[ed].scans['quick_SNR_gre3D'].download(zip_path)
+                            # except:
+                            #     print('No quick_SNR in ' + ed )
                                 
   
 
