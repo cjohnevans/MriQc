@@ -52,6 +52,33 @@ class BasicQc:
         self.ph_radius = np.min([row_width, col_width])/2
     
     def mask_phantom(self, R_mask=None, plot_mask=False):
+        self.mask_image(region='in', R_mask=R_mask, plot_mask=plot_mask)
+        
+    def mask_image(self, region='in', R_mask=None, plot_mask=False):
+        '''
+        mask_image(region='in',
+                   R_mask=None, 
+                   plot_mask=False)
+
+        Parameters
+        ----------
+        region : string, required
+            accepted values are;
+            'in' - to include everything inside R_mask within the mask . 
+            'out'- to include everything outside R_mask within the mask . 
+
+            The default is 'in'.
+        R_mask : TYPE, optional
+            DESCRIPTION. The default is None.
+        plot_mask : TYPE, optional
+            DESCRIPTION. The default is False.
+
+        Returns
+        -------
+        mask : TYPE
+            DESCRIPTION.
+
+        '''
         row_min = int(-self.ph_centre[0])
         row_max = int(self.im_shape[0] - self.ph_centre[0])
         col_min = int(-self.ph_centre[1])
@@ -64,7 +91,11 @@ class BasicQc:
         row_grid2 = row_grid[0:self.im1.shape[0], 0:self.im1.shape[1]]
         col_sqr = np.power(col_grid2,2)
         row_sqr = np.power(row_grid2,2)
-        mask = (col_sqr + row_sqr) < np.power(R_mask,2)
+        if region = 'out':
+            mask = (col_sqr + row_sqr) > np.power(R_mask,2)
+        else: # region = 'in'
+            mask = (col_sqr + row_sqr) < np.power(R_mask,2)
+        
         
         if plot_mask:
             mask_img = mask*np.max(np.max(self.im1))
