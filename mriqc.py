@@ -223,9 +223,9 @@ class BasicQc:
         std_signal = np.std(im_sub_mask)
         self.snr = np.power(2, 0.5) * mean_signal / std_signal
         self.mean_signal = mean_signal
-        print('SNR (NEMA) {:.6} '.format(self.snr))
+        print('SNR (NEMA)       {:.6} '.format(self.snr))
         
-        # NEMA Method 2 variant: Use single image, estimate noise from outside phantom
+        # NEMA Method 4 variant: Use single image, estimate noise from outside phantom
         #   this includes most of the region outside the phantom, so will include
         #   ghosting.
         noise_radius = 1.2 * self.ph_radius # estimated 20% larger than phantom
@@ -233,6 +233,9 @@ class BasicQc:
         im_noise = self.im2[noise_mask==True]
         sd_noise = np.std(im_noise)
         self.snr_background = 0.66 * np.mean(self.im1[phantom_mask==True]) / sd_noise
+        print('SNR (background) {:.6} '.format(self.snr_background))
+
+        # NEMA Method 4 
 
         fig = plt.figure(figsize=(10,5))
         ax = fig.subplots(2,2)
