@@ -171,7 +171,12 @@ def xnat_download():
                             try:
                                 qc_exp[ed].scans['GloverGSQAP'].download(zip_path)
                             except:
-                                print('!!!WARNING: Download of ' + ed + ' failed')
+                                print('No GloverGSQAP in ' + ed )
+                            try:
+                                qc_exp[ed].scans['quick_SNR_gre3D'].download(zip_path)
+                            except:
+                                print('No quick_SNR in ' + ed )
+                                
   
 
 def data_unzip(unzip=True, remove_invalid_file=False):
@@ -214,6 +219,7 @@ def data_unzip(unzip=True, remove_invalid_file=False):
         # directory of downloaded zip files
         dir_zip = os.path.join(data_path, ppt, 'zip')
         fls = os.listdir(dir_zip)
+        zip_skipped = []
         for ff in fls:
             if 'XNAT' in ff[0:4] and '.zip' in ff[-4:]:
                 exp_id = ff[:-4]
@@ -223,7 +229,8 @@ def data_unzip(unzip=True, remove_invalid_file=False):
                 nifti_exp_dir = os.path.join(nifti_root, exp_id)
                 # perform unzipping, but skip if unpacked directory exists
                 if os.path.isdir(dicom_exp_dir) or os.path.isdir(nifti_exp_dir): 
-                    print(ff, 'Skipping  - previous unzip or nifti exists in ', ppt)
+                    # print(ff, 'Skipping  - DICOMs exist for ', ppt)
+                    zip_skipped.append(ff)
                 else:
                     if unzip == True:
                         # suppress output - errors are verbose
@@ -244,6 +251,7 @@ def data_unzip(unzip=True, remove_invalid_file=False):
                             print(ff, '!!! ERROR - Unzipping ' + zip_file + ' failed. File removed.')
                         else:
                             print(ff, '!!! ERROR - Unzipping ' + zip_file + ' failed. File not removed')
+        print('Previous DICOM data exists for '+ str(len(zip_skipped)) + ' experiments')                    
 
 def empty_nifti_dir(nifti_dir, remove=False):
     """
@@ -292,6 +300,7 @@ def nifti_convert():
         empty_nifti_dir(nifti_root, remove=True) # clean the nifti dir before starting
 
         fls = os.listdir(dicom_root)
+        nifti_skipped = []
         for ff in fls:
             if 'XNAT' in ff[0:4]:
                 exp_id = ff
@@ -301,7 +310,8 @@ def nifti_convert():
 
                 # check if niftis exist - sufficient as we've cleaned up any empty dirs.
                 if os.path.isdir(nifti_exp_dir): 
-                    print(ff, 'Skipping  - previous unzip or nifti exists in ', ppt)
+                    #print(ff, 'Skipping  - previous unzip or nifti exists in ', ppt)
+                    nifti_skipped.append(ff)
                 else:
                     os.mkdir(nifti_exp_dir)
                     #print(ff, 'Running dcm2niix and outputing to  ' + nifti_exp_dir)
@@ -315,6 +325,7 @@ def nifti_convert():
                         print(ff, 'OK        - Convert from ' + dicom_exp_dir + ' succeeded')
                     else:
                         print(ff, '!!! ERROR - Convert ' + dicom_exp_dir + ' failed.  Error=' + sb.returncode)
+        print('Previous NIFTI data exists for '+ str(len(nifti_skipped)) + ' experiments')                    
                 
              
 def proc_qc(analyse_all=False):
