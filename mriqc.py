@@ -79,10 +79,10 @@ class BasicQc:
             'out'- to include everything outside R_mask within the mask . 
 
             The default is 'in'.
-        R_mask : TYPE, optional
+        R_mask : FLOAT, optional
             DESCRIPTION. The default is None.
-        plot_mask : TYPE, optional
-            DESCRIPTION. The default is False.
+        plot_mask : BOOL, optional
+            Create plot of the mask. The default is False.
 
         Returns
         -------
@@ -116,6 +116,25 @@ class BasicQc:
             ax.set_title('mask')
             
         return mask
+    
+    def mask_corners(corner_length=20, plot_mask=False):
+        '''
+        mask_corners(corner_length, 
+                     plot_mask)
+
+        Parameters
+        ----------
+        corner_length : FLOAT, required
+            Length, in pixels, occupied by each corner.
+            The default is 20.
+        plot_mask : TYPE, optional
+            DESCRIPTION. The default is False.
+
+        Returns
+        -------
+        None.
+
+        '''
     
     # calculation functions
     def snr_nema(self, f1, f2):
