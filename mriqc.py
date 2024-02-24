@@ -86,8 +86,8 @@ class BasicQc:
 
         Returns
         -------
-        mask : TYPE
-            DESCRIPTION.
+        mask : BOOL
+            Boolean image mask.
 
         '''
         row_min = int(-self.ph_centre[0])
@@ -117,7 +117,7 @@ class BasicQc:
             
         return mask
     
-    def mask_corners(corner_length=20, plot_mask=False):
+    def mask_corners(self, corner_length=20, plot_mask=False):
         '''
         mask_corners(corner_length, 
                      plot_mask)
@@ -135,6 +135,13 @@ class BasicQc:
         None.
 
         '''
+        
+        mask = np.empty(self.im_shape, dtype='bool')
+        mask[:] = False
+        mask[:corner_length, :corner_length] = True
+        
+        
+        return mask
     
     # calculation functions
     def snr_nema(self, f1, f2):
