@@ -132,14 +132,27 @@ class BasicQc:
 
         Returns
         -------
-        None.
+        mask
 
         '''
         
-        mask = np.empty(self.im_shape, dtype='bool')
+        # use the shape of one of the image files - i.e. after converting to 2D
+        mask = np.empty(self.im1.shape, dtype='bool')
         mask[:] = False
+        n0=self.im1.shape[0]
+        n1=self.im1.shape[1]
         mask[:corner_length, :corner_length] = True
+        mask[(n0-corner_length):, :corner_length ] = True
+        mask[:corner_length, (n1-corner_length):] = True
+        mask[(n0-corner_length):,(n1-corner_length):] = True
+        print('corners :', corner_length, n0-corner_length, n1-corner_length)
         
+        if plot_mask:
+            mask_img = mask
+            fig3 = plt.figure()
+            ax = fig3.subplots(1,1)       
+            ax.imshow(mask_img)
+            ax.set_title('mask')
         
         return mask
     
@@ -193,6 +206,7 @@ class BasicQc:
         
         nii = nib.load(nii_file)
         img = nii.get_fdata(dtype=np.float64)
+        
         im1in = img[:,:,:,0]
         im2in = img[:,:,:,1]
         self.snr_nema_2image(im1in, im2in)
@@ -249,20 +263,26 @@ class BasicQc:
         std_signal = np.std(im_sub_mask)
         self.snr = np.power(2, 0.5) * mean_signal / std_signal
         self.mean_signal = mean_signal
-        print('SNR (NEMA)       {:.6} '.format(self.snr))
+        print('NEMA SNR (method 1: 2 image subtraction)       {:.6} '.format(self.snr))
         
         # NEMA Method 4 variant: Use single image, estimate noise from outside phantom
         #   this includes most of the region outside the phantom, so will include
         #   ghosting.
         noise_radius = 1.2 * self.ph_radius # estimated 20% larger than phantom
         noise_mask = self.mask_empty(noise_radius)       
-        im_noise = self.im2[noise_mask==True]
+        im_noise = self.im2[noise_mask==True] # use image 2 - less flow in phantom.
         sd_noise = np.std(im_noise)
-        self.snr_background = 0.66 * np.mean(self.im1[phantom_mask==True]) / sd_noise
-        print('SNR (background) {:.6} '.format(self.snr_background))
+        self.snr_bgd_ghost = 0.66 * np.mean(self.im1[phantom_mask==True]) / sd_noise
+        print('     SNR (ref background including ghosting)   {:.6} '.format(self.snr_bgd_ghost))
 
         # NEMA Method 4 
-
+        mask_corners = self.mask_corners(corner_length=20, plot_mask=True)
+        im_corners = self.im2[mask_corners==True]
+        sd_corners = np.std(im_corners)
+        self.snr_bgd = 0.66 * np.mean(self.im1[phantom_mask==True]) / sd_corners
+        print('NEMA SNR (ref corners)                         {:.6} '.format(self.snr_bgd))
+       
+        # plot       
         fig = plt.figure(figsize=(10,5))
         ax = fig.subplots(2,2)
         ax[0][0].imshow(self.im1,cmap='jet')
@@ -271,6 +291,7 @@ class BasicQc:
         ax[1][1].plot(self.im1[self.im_centre[1],:])  # dim0 in blue
         ax[1][1].plot(self.im1[:,self.im_centre[0]])  # dim1 in orange
         #ax[1][1].plot(im_sub_mask)
+        
         
         
     def uniformity_nema(self, f1):
