@@ -37,4 +37,7 @@ mriqc.FmriQcOverview('7T','/cubric/collab/108_QA/QA7T/fmriqc_MB/', email_summary
 mriqc.FmriQcOverview('3TE','/cubric/collab/108_QA/QA3TE/fmriqc_glover/', email_summary=False)
 mriqc.FmriQcOverview('3TM','/cubric/collab/108_QA/QA3TM/fmriqc_glover/', email_summary=False)
 
-
+mriqc.QuickQcOverview('3TW', '/cubric/collab/108_QA/QA3TW/quick_SNR_gre3D', email_summary=False)
+mriqc.QuickQcOverview('7T', '/cubric/collab/108_QA/QA7T/quick_SNR_gre3D', email_summary=False)
+mriqc.QuickQcOverview('3TE', '/cubric/collab/108_QA/QA3TE/quick_SNR_gre3D', email_summary=False)
+mriqc.QuickQcOverview('3TM', '/cubric/collab/108_QA/QA3TM/quick_SNR_gre3D', email_summary=False)

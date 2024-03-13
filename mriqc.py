@@ -1076,7 +1076,7 @@ class QcOverview():
         self.dat_files = []
         self.system = system
         self.path_to_reports = path_to_reports 
-        print('\nChecking for new ' + system + ' fmriqc analysis to add to summary')
+        print('\nChecking for new ' + system + ' analysis to add to summary')
         for root,dirs,files in os.walk(path_to_reports):
             for ff in files:
                 if '.dat' in ff:
@@ -1091,17 +1091,40 @@ class QcOverview():
             if email_summary:
                 self.email_results()
         
-        def dat_to_pandas(self):
-            '''
-            this is void for base class
-            '''
-            return False
+    def dat_to_pandas(self):
+        '''
+        this is void for base class
+        '''
+        data_str = []
+        for df in self.dat_files:
+            with open(df) as f:
+                title=f.readline().replace('\n','').split(',')
+                data_str.append(f.readline().replace('\n','').split(','))
+        self.oview_qc=pd.DataFrame(data_str)
+        self.oview_qc.columns = title
+        date_str = self.oview_qc['File'].str.split('-', expand=True)[0]
+        date_pd = date_str.str.split('_', expand=True)
+        # deal with annoying XA patientid update.  Add 2000 if year is 2 digit.
+        # year_temp could be YY (VB, VD, VE) or YYYY (XA)
+        date_pd = date_pd.rename(columns={0:'year_temp',1:'month',2:'day'})
+        date_pd = date_pd.astype('int16')
+        def four_digit_year(yr):
+            if yr < 100:
+                return(yr + 2000)
+            else:
+                return(yr)
+        date_pd['year']=date_pd['year_temp'].apply(four_digit_year)
+        date_pd.pop('year_temp')
+        self.oview_qc['date']=pd.to_datetime(date_pd)
+        self.oview_qc['scanner'] = self.oview_qc['File'].str.split('-', expand=True)[3].str.split('_', expand=True)[8]
+
+        return False
         
-        def plots(self):
-            '''
-            this is void for base class
-            '''
-            return False            
+    def plots(self):
+        '''
+        this is void for base class
+        '''
+        return False            
             
     def check_analysis_required(self):
         '''
@@ -1129,10 +1152,8 @@ class QcOverview():
             print('No new QA data')
             new_qa = False
         return new_qa
-            
-            
-        # find lastst summary date
-        
+                       
+       
     def find_latest_file(self, check_path):
         '''
         navigate check_path to get lastest file time (as in since start 
@@ -1171,14 +1192,8 @@ class FmriQcOverview(QcOverview):
         None.
 
         '''
-        data_str = []
-        for df in self.dat_files:
-            with open(df) as f:
-                title=f.readline().replace('\n','').split(',')
-                data_str.append(f.readline().replace('\n','').split(','))
+        super().dat_to_pandas()
 
-        self.oview_qc=pd.DataFrame(data_str)
-        self.oview_qc.columns = title
         self.oview_qc['sfnr_vol'] = self.oview_qc['sfnr_vol'].astype('float')
         self.oview_qc['mean_vol'] = self.oview_qc['mean_vol'].astype('float')
         self.oview_qc['sd_vol'] = self.oview_qc['sd_vol'].astype('float')
@@ -1186,25 +1201,8 @@ class FmriQcOverview(QcOverview):
         self.oview_qc['mean_voi'] = self.oview_qc['mean_voi'].astype('float')
         self.oview_qc['sd_voi'] = self.oview_qc['sd_voi'].astype('float')
         self.oview_qc['drift'] = self.oview_qc['drift'].astype('float')
-#        self.oview_qc.index=self.oview_qc['File']
-#        self.oview_qc.drop('File', axis=1)
-        date_str = self.oview_qc['File'].str.split('-', expand=True)[0]
-        date_pd = date_str.str.split('_', expand=True)
-        # deal with annoying XA patientid update.  Add 2000 if year is 2 digit.
-        # year_temp could be YY (VB, VD, VE) or YYYY (XA)
-        date_pd = date_pd.rename(columns={0:'year_temp',1:'month',2:'day'})
-        date_pd = date_pd.astype('int16')
-        def four_digit_year(yr):
-            if yr < 100:
-                return(yr + 2000)
-            else:
-                return(yr)
-        date_pd['year']=date_pd['year_temp'].apply(four_digit_year)
-        date_pd.pop('year_temp')
-        self.oview_qc['date']=pd.to_datetime(date_pd)
-        self.oview_qc['scanner'] = self.oview_qc['File'].str.split('-', expand=True)[3].str.split('_', expand=True)[8]
         self.oview_qc=self.oview_qc.rename(columns={'sfnr_vol':'sfnr_volume', 'mean_vol':'mean_volume', 'sd_vol':'sd_volume'})    
-        self.oview_qc.tail()
+
         self.oview_qc_short = self.oview_qc
         self.oview_qc_short.index = self.oview_qc_short['date']
         self.oview_qc_short=self.oview_qc_short.drop(columns=['date','File'])
@@ -1229,7 +1227,27 @@ class FmriQcOverview(QcOverview):
                         , 'fmriqc_'+str(dt.datetime.now().isoformat()[:-7]).replace(':','-')))
         fig.savefig(os.path.join(self.path_to_reports, 'summary'\
                         , self.system+'_fmriqc_latest.png'))
-  
+
+class QuickQcOverview(QcOverview):
+    def dat_to_pandas(self):
+        super().dat_to_pandas()
+        self.oview_qc['SNR_NEMA'] = self.oview_qc['SNR_NEMA'].astype('float')
+        self.oview_qc['SNR_background'] = self.oview_qc['SNR_background'].astype('float')
+        self.oview_qc['Ghosting'] = self.oview_qc['Ghosting'].astype('float')
+    
+    def plots(self):
+        fig = plt.figure(figsize=(18,6))
+        axes = fig.subplots(1,2)
+        self.oview_qc.plot(x='date', y=['SNR_background']\
+                           , ax=axes[0], title=self.system+' SNR_background', grid=True, marker='o')
+        self.oview_qc.plot(x='date', y=['Ghosting']\
+                           , ax=axes[1], title=self.system+' Ghosting', grid=True, marker='o')
+        fig.savefig(os.path.join(self.path_to_reports, 'summary'\
+                        , 'quickqc_'+str(dt.datetime.now().isoformat()[:-7]).replace(':','-')))
+        fig.savefig(os.path.join(self.path_to_reports, 'summary'\
+                        , self.system+'_quickqc_latest.png'))
+
+    
             
 class SpikeQcOverview(QcOverview):
     '''
