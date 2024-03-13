@@ -6,12 +6,21 @@ import os, sys
 sys.path.append('/home/sapje1/code/MriQc')
 import mriqc
 
-path_quick = '/home/sapje1/scratch_sapje1/2024/240220_quickQC/24_02_22-11_12_42-STD-1_3_12_2_1107_5_2_0_19950/nifti'
-ff_quick = '24_02_22-11_12_42-STD-1_3_12_2_1107_5_2_0_19950_2_quick_SNR_gre3D.nii'
-
-path_orig= '/home/sapje1/scratch_sapje1/2023/231121_qc_3tw_snr/nema_tse/other_echoes'
-ff_orig = '23_09_12-13_23_32-DST-1_3_12_2_1107_5_2_43_66073_4_NEMA_SNR_Uniformity_T2_e2.nii'
-
-qctest = mriqc.BasicQc()
-qctest.snr_nema_multivol(os.path.join(path_quick,ff_quick))
+os.chdir('/home/sapje1/scratch_sapje1/2024/240220_quickQC/24_02_22-11_12_42-STD-1_3_12_2_1107_5_2_0_19950/nifti')
+connectom_files = os.listdir()
+f_part1 = '24_02_22-11_12_42-STD-1_3_12_2_1107_5_2_0_19950_'
+f_part2 = '_quick_SNR_gre3D.nii'
+snr_conn2 = []
+snrbgd_conn2 = []
+ghost_conn2 = []
+for ii in range(2,3):
+    f1 = f_part1 + str(ii) + f_part2
+    snrcalc = mriqc.BasicQc(write_report=True, \
+                            report_path='/home/sapje1/scratch_sapje1/2024/240220_quickQC/report')
+    snrcalc.snr_nema_multivol(f1)
+    snr_conn2.append(snrcalc.snr)
+    snrbgd_conn2.append(snrcalc.snr_bgd)
+    ghost_conn2.append(snrcalc.ghost)
+    
+print(snrcalc.nii_file)
 

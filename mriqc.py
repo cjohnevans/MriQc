@@ -12,6 +12,11 @@ class BasicQc:
     '''
     BasicQc: methods for elementary QC calculations
     '''
+    def __init__(self, write_report=False, report_path='.'):
+        self.write_report = write_report 
+        self.report_path = report_path
+        self.nii_file = '' # set this when loading
+        
     # Helper functions first
     def locate_phantom(self,im1):
         """
@@ -180,6 +185,7 @@ class BasicQc:
         None.
 
         """   
+        self.nii_file = f1 
         nii1 = nib.load(f1)
         nii2 = nib.load(f2)
 
@@ -203,7 +209,7 @@ class BasicQc:
         None.
 
         '''
-        
+        self.nii_file = nii_file
         nii = nib.load(nii_file)
         img = nii.get_fdata(dtype=np.float64)
         
@@ -289,6 +295,11 @@ class BasicQc:
         
         # plot       
         fig = plt.figure(figsize=(10,5))
+        fig.suptitle(self.nii_file)
+        fig.text(0,0.85, str("SNR_NEMA   {:.2f}".format(self.snr)))
+        fig.text(0,0.8, str("SNR_bgd       {:.2f}".format(self.snr_bgd)))
+        fig.text(0,0.75, str("Ghosting       {:.2f}".format(self.ghost)))
+
         ax = fig.subplots(2,2)
         ax[0][0].imshow(self.im1,cmap='jet')
         ax[0][1].imshow(self.im2,cmap='jet')
@@ -297,11 +308,23 @@ class BasicQc:
         ax[1][1].plot(self.im1[:,self.im_centre[0]])  # dim1 in orange
         #ax[1][1].plot(im_sub_mask)
         
-        
+        # write report data, if required
+        if self.write_report:
+            self.output_root = self.nii_file.split('/')[-1].split('.nii')[0]
+            self.output_png = self.output_root + '.png'
+            fig.savefig(os.path.join(self.report_path, self.output_png))
+            
+        txt_fname = os.path.join(self.report_path, 'quickqc_'+self.output_root+'.dat')
+        with open(txt_fname, 'w') as ff:
+            ff.write('File,SNR_NEMA,SNR_background,Ghosting\n')
+            ff.write( self.output_root \
+                     +",{0:.2f}".format(self.snr)\
+                     +",{0:.2f}".format(self.snr_bgd)\
+                     +",{0:.2f}".format(self.ghost) )
+
         
     def uniformity_nema(self, f1):
-        """
-        
+        """        
         Principles:
             get data, 
             use same helper functions as snr to mask image.  Without masking, 
