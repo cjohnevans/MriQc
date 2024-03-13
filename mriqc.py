@@ -145,7 +145,7 @@ class BasicQc:
         mask[(n0-corner_length):, :corner_length ] = True
         mask[:corner_length, (n1-corner_length):] = True
         mask[(n0-corner_length):,(n1-corner_length):] = True
-        print('corners :', corner_length, n0-corner_length, n1-corner_length)
+        # print('corners :', corner_length, n0-corner_length, n1-corner_length)
         
         if plot_mask:
             mask_img = mask
@@ -276,12 +276,17 @@ class BasicQc:
         print('     SNR (ref background including ghosting)   {:.6} '.format(self.snr_bgd_ghost))
 
         # NEMA Method 4 
-        mask_corners = self.mask_corners(corner_length=20, plot_mask=True)
+        mask_corners = self.mask_corners(corner_length=20)
         im_corners = self.im2[mask_corners==True]
         sd_corners = np.std(im_corners)
         self.snr_bgd = 0.66 * np.mean(self.im1[phantom_mask==True]) / sd_corners
         print('NEMA SNR (ref corners)                         {:.6} '.format(self.snr_bgd))
        
+        # Report the ghosting as the stdev of the whole region outside the phantom
+        # (which should contain ghosting)
+        # relative to the ghosting in the corners (which should be free of ghosting)
+        self.ghost = sd_noise / sd_corners
+        
         # plot       
         fig = plt.figure(figsize=(10,5))
         ax = fig.subplots(2,2)
