@@ -15,6 +15,8 @@ class BasicQc:
     def __init__(self, write_report=False, report_path='.'):
         self.write_report = write_report 
         self.report_path = report_path
+        if not os.path.exists(self.report_path):
+            os.mkdir(self.report_path)
         self.nii_file = '' # set this when loading
         
     # Helper functions first

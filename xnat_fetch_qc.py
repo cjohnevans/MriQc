@@ -169,7 +169,7 @@ def xnat_download():
                             zip_path = os.path.join(dir_zip, ed + '.zip')
                             print('Downloading ' + ed + ' to ' + zip_path)
                             try:
-                                qc_exp[ed].scans['GloverGSQAP'].download(zip_path)
+                                qc_exp[ed].scans['quick_SNR_gre3D'].download(zip_path)
                             except:
                                 print('!!!WARNING: Download of ' + ed + ' failed')
   
@@ -391,7 +391,16 @@ def proc_qc(analyse_all=False):
                             plttitle= s + '_' + scan_date
                             mriqc.SpikeQc(os.path.join(nifti_path,e,se) \
                                     , report_path=rep_path).spike_check(plttitle)
-    
+                if 'quick_SNR_gre3D' in se:
+                    if '.nii' in se:
+                        rep_path = os.path.join(data_path, s, 'quick_SNR_gre3D/proc', se_no_ext)
+                        try:
+                            os.listdir(rep_path)
+                        except:
+                            print(se_no_ext + ' is new... Analysing...')
+                            quickqc = mriqc.BasicQc(write_report=True, report_path = rep_path)
+                            quickqc.snr_nema_multivol(os.path.join(nifti_path,e,se))
+                            
 def check_qc():
     '''
     check the status of the QC directory
