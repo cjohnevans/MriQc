@@ -10,6 +10,7 @@ function [RuleMatrix] = shewhart(qadata, qatitle, qaaxis, InvisibleFig, ...
 % InvisibleFig = 1; Don't display figure in matlab
 % PlotDate = Plot against date (for EPIQA)
 % PlotLastN = only plot the last N measurements (but analyse them all)
+%
 
 qadata_DM = qadata - mean(qadata);
 qadata_SD = std(qadata);
