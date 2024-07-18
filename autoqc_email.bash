@@ -6,9 +6,9 @@
 # remove 3TW from the fmriqc summary
 convert -append /cubric/collab/108_QA/QA7T/fmriqc_glover/summary/7T_fmriqc_latest.png /cubric/collab/108_QA/QA3TM/fmriqc_glover/summary/3TM_fmriqc_latest.png /cubric/collab/108_QA/QA3TE/fmriqc_glover/summary/3TE_fmriqc_latest.png  /cubric/collab/108_QA/fmriqc_latest.png
 
-/home/sapje1/code/python_mrobjects/qc/autoqc_status.py | mailx -r mriqc@cardiff.ac.uk -s "fmriqc (Glover)" -a /cubric/collab/108_QA/fmriqc_latest.png evansj31@cardiff.ac.uk
+#/home/sapje1/code/python_mrobjects/qc/autoqc_status.py | mailx -r mriqc@cardiff.ac.uk -s "fmriqc (Glover)" -a /cubric/collab/108_QA/fmriqc_latest.png evansj31@cardiff.ac.uk
 
-cat autoqc.log | tail -n 5 | mailx -r mriqc@cardiff.ac.uk -s "fmriqc (Glover)" -a /cubric/collab/108_QA/fmriqc_latest.png 5ed88dc2.cf.onmicrosoft.com@emea.teams.ms
+/home/sapje1/code/python_mrobjects/qc/autoqc_status.py  | tail -n 5 | mailx -r mriqc@cardiff.ac.uk -s "fmriqc (Glover)" -a /cubric/collab/108_QA/fmriqc_latest.png evansj31@cardiff.ac.uk
 
 spikefiles=`find /cubric/collab/108_QA -ipath '*spike_stats.png' -ctime -1 | xargs`
 
