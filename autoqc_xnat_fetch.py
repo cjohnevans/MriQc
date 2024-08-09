@@ -19,7 +19,7 @@
 '''
 
 import sys
-sys.path.append('/home/sapje1/code/python_mrobjects/qc')
+sys.path.append('/home/sapje1/code/MriQc')
 import xnat_fetch_qc as xnqc
 
 #  currently not using this - require manual check of autoqc_status prior to auto_qc_fetch

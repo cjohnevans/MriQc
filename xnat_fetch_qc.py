@@ -15,7 +15,7 @@ Set of functions to handle get data from XNAT and launch processing, with approi
 import xnat
 import subprocess
 import os, shutil, sys
-sys.path.append('/home/sapje1/code/python_mrobjects/qc')
+sys.path.append('/home/sapje1/code/MriQc')
 import mriqc
 
 data_path = '/cubric/collab/108_QA'
@@ -169,7 +169,8 @@ def xnat_download():
                             zip_path = os.path.join(dir_zip, ed + '.zip')
                             print('Downloading ' + ed + ' to ' + zip_path)
                             try:
-                                qc_exp[ed].scans['GloverGSQAP'].download(zip_path)
+                                qc_exp[ed].scans['EPIspike_head'].download(zip_path)
+                                qc_exp[ed].scans['EPIspike_body'].download(zip_path)
                             except:
                                 print('!!!WARNING: Download of ' + ed + ' failed')
   

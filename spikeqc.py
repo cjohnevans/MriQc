@@ -7,7 +7,7 @@ Created on Mon May  1 16:40:40 2023
 @author: sapje1
 """
 import sys
-sys.path.append('/home/sapje1/code/python_mrobjects/qc')
+sys.path.append('/home/sapje1/code/MriQc')
 import mriqc
 
 def splash():

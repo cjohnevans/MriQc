@@ -19,7 +19,7 @@
 '''
 
 import sys
-sys.path.append('/home/sapje1/code/python_mrobjects/qc')
+sys.path.append('/home/sapje1/code/MriQc')
 import xnat_fetch_qc as xnqc
 import mriqc
 
@@ -29,12 +29,5 @@ xnqc.nifti_convert()
 
 # process QC data
 xnqc.proc_qc()
-
-# run fmriqc summary script
-mriqc.FmriQcOverview('3TW','/cubric/collab/108_QA/QA3TW/fmriqc_glover/', email_summary=False)
-mriqc.FmriQcOverview('7T','/cubric/collab/108_QA/QA7T/fmriqc_glover/', email_summary=False)
-mriqc.FmriQcOverview('7T','/cubric/collab/108_QA/QA7T/fmriqc_MB/', email_summary=False)
-mriqc.FmriQcOverview('3TE','/cubric/collab/108_QA/QA3TE/fmriqc_glover/', email_summary=False)
-mriqc.FmriQcOverview('3TM','/cubric/collab/108_QA/QA3TM/fmriqc_glover/', email_summary=False)
 
 
