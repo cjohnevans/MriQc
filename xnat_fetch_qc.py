@@ -30,27 +30,42 @@ qcsubj = { 'QA7T' : 'XNAT_S06014',
            'QA3TW' : 'XNAT_S06091'
         }
 
-def update_downloaded():
+allowed_qc_type = ['glover', 'spikehead', 'spikebody']
+
+def update_downloaded(qc_type):
     """
     update_downloaded()
     ----------------------
     
-    Check data downloaded, unzipped and converted to nifti in DATA_PATH/nifti  and update 
-    file DOWNLOAD_DONE with a set
-    of XNAT experiment IDs.  This is to be used by xnat_download() to grab only NEW data from XNAT.
+    Check data downloaded, unzipped and converted to nifti in DATA_PATH/nifti and update 
+    file DOWNLOAD_DONE with a set of XNAT experiment IDs.  
+    This is to be used by xnat_download() to grab only NEW data from XNAT.
     It should be run before any other calls in this module.
-
+    
+    DOWNLOAD_DONE is rewritten on each call (so will update for different data types, e.g.
+    when called for spike_head after Glover, etc)
+    
+    Parameters
+    ----------
+    qc_type        :  str
+                      Must be one of allowed_qc_type (defined above), e.g. 'glover', 'spikehead'
+ 
     Returns
     -------
     None.
 
     """
+    
+    if qc_type not in allowed_qc_type:
+        print(qc_type + " is not an allowed qc type.  update_downloaded() failed")
+        return False
+    
     # regenerate list of downloaded datasets
     exp_done = []
     
     print('update_downloaded: Checking for downloaded nifti data in ' + data_path)
     for qd in qcsubj.keys():
-        qdir = os.path.join(data_path,qd,'nifti')
+        qdir = os.path.join(data_path,qd,'nifti',qc_type)
         list1 = os.listdir(qdir)
         exp_done_ppt = []
     
@@ -71,7 +86,7 @@ def update_downloaded():
             f.write(line + '\n')
     print('File ' + download_done + ' updated')
 
-def update_xnat_new():
+def update_xnat_new(qc_type):
     """
     update_xnat_new()
     ---------------
@@ -82,14 +97,25 @@ def update_xnat_new():
 
     Parameters
     ----------
-    None
-
+    qc_type        :  str
+                      Must be one of allowed_qc_type (defined above), e.g. 'glover', 'spikehead'
+ 
     Returns
     -------
     None.
 
     """
-
+    if qc_type not in allowed_qc_type:
+        print(qc_type + " is not an allowed qc type.  update_xnat_new() failed")
+        return False
+    if qc_type == 'glover':
+        qc_series_name = 'GloverGSQAP'
+    if qc_type == 'spikehead':
+        qc_series_name = 'EPIspike_head'
+    if qc_type == 'spikebody':
+        qc_series_name = 'EPIspike_body'
+       
+ 
 #   load the list of downloaded and converted sessions
     with open(download_done, 'r') as f:
         tmp = f.readlines()
@@ -98,7 +124,7 @@ def update_xnat_new():
         exp_downloaded.append(line.replace('\n',''))
         
     # if no authentication provided, xnat will look to .netrc file for authentication
-    print('\nupdate_xnat_new: Checking for new data on XNAT')
+    print('\nupdate_xnat_new: Checking for new '+ qc_series_name + ' data on XNAT')
     
     with xnat.connect('https://xnat.cubric.cf.ac.uk') as session:
         with open(download_new, 'w') as fnew:
@@ -113,15 +139,16 @@ def update_xnat_new():
                     exp_to_download = []
                     
                     # set up zip path for this scanner (subject)
-                    dir_zip = os.path.join(data_path, subj_id, 'zip_spike')
+                    dir_zip = os.path.join(data_path, subj_id, 'zip',qc_type)
                     if not os.path.isdir(dir_zip):
                         os.mkdir(dir_zip)                     
                     
                     for e in qc_exp:
-                        # check xnat experiement ids against those previously downloaded
+                        # check xnat experiment ids against those previously downloaded
                         if e not in exp_downloaded:
-                            #print('Session ' + e + ' is new.')
-                            exp_to_download.append(e)
+                            if qc_series_name in qc_exp[e].scans:
+                                #print('Session ' + e + ' is new.')
+                                exp_to_download.append(e)
                             
                     print(subj_id + ': ' + str(len(qc_exp)) + ' sessions on XNAT, ' + \
                           str(len(exp_to_download)) + ' new session(s) are available')
@@ -133,7 +160,7 @@ def update_xnat_new():
     print('File ' + download_new + ' updated')
 
 
-def xnat_download(check_all_exams=False):
+def xnat_download(qc_type, check_all_exams=False):
     """
     xnat_download(check_all=False)
     
@@ -144,11 +171,27 @@ def xnat_download(check_all_exams=False):
     works OK.  It does make the directory structure more ungainly, and it makes to 
     download process less efficient, as it needs to be re-run for each data type separately
     
-    check_all_exams:  BOOLEAN.  If True, check all exams in 108QA project, not just the ones
+    Parameters
+    ----------
+    
+    qc_type        :  str
+                      Must be one of allowed_qc_type (defined above), e.g. 'glover', 'spikehead'
+    
+    check_all_exams:  boolean.  
+                      If True, check all exams in 108QA project, not just the ones
                       detected as new by update_downloaded().   
     
     """
-
+    if qc_type not in allowed_qc_type:
+        print(qc_type + " is not an allowed qc type.  xnat_download() failed")
+        return False  
+    if qc_type == 'glover':
+        qc_series_name = 'GloverGSQAP'
+    if qc_type == 'spikehead':
+        qc_series_name = 'EPIspike_head'
+    if qc_type == 'spikebody':
+        qc_series_name = 'EPIspike_body'
+    
     # get list of new experiments to download   
     with open(download_new, 'r') as f:
         tmp = f.readlines()
@@ -156,9 +199,7 @@ def xnat_download(check_all_exams=False):
         for line in tmp:
             if 'XNAT_E' in line:
                 exp_new.append(line.replace('\n',''))
-
-        print('There are ' + str(len(exp_new)) + ' experiments to download')
-
+        print('There are ' + str(len(exp_new)) + ' experiments to check')
                  
     # download new experiments
     with xnat.connect('https://xnat.cubric.cf.ac.uk') as session:
@@ -170,7 +211,7 @@ def xnat_download(check_all_exams=False):
                     qc_exp = subj[s].experiments #qc_exp is the qc experiments for this subject
 
                     # set up zip path for this scanner (subject)
-                    dir_zip = os.path.join(data_path, subj_id, 'zip_spike')
+                    dir_zip = os.path.join(data_path, subj_id, 'zip',qc_type)
                     if not os.path.isdir(dir_zip):
                         os.mkdir(dir_zip)                     
                     
@@ -178,28 +219,33 @@ def xnat_download(check_all_exams=False):
                         if ed in exp_new or check_all_exams == True:  # download if new
                             zip_path = os.path.join(dir_zip, ed + '.zip')
                             print('Checking ' + ed )
-                            print(qc_exp[ed].scans)
+                            #print(qc_exp[ed].scans)
                             try:
-                                qc_exp[ed].scans['EPIspike_head'].download(zip_path)
-                                qc_exp[ed].scans['EPIspike_body'].download(zip_path)
+                                qc_exp[ed].scans[qc_series_name].download(zip_path)
                             except:
-                                print('!!!WARNING: Download of ' + ed + ' failed')
+                                print('WARNING: No ' + qc_series_name + ' found in ' + ed)
   
 
-def data_unzip(unzip=True, remove_invalid_file=False, unzip_all=False):
+def data_unzip(qc_type, unzip=True, remove_invalid_file=False, unzip_all=False):
     """
     data_unzip()
     ------------
     
-    unzip = Boolean
-      if True performs the extraction, if False, runs a zip file test (unzip -t)
-      without extracting the dicoms.
+    Parameters
+    ----------
+    
+    qc_type        :  str
+                      Must be one of allowed_qc_type (defined above), e.g. 'glover', 'spikehead'
+   
+    unzip          :  Boolean
+                      if True performs the extraction, if False, runs a zip file test (unzip -t)
+                      without extracting the dicoms.
       
-    remove_invalid_file = Boolean
-       if True, remove the .zip file following a failed check or attempted unzip
-       if False, ignore the failed zip file.
+    remove_invalid_file : Boolean
+                      if True, remove the .zip file following a failed check or attempted unzip
+                      if False, ignore the failed zip file.
        
-    unzip_all = Boolean
+    unzip_all       : Boolean
        if True, unzip all zip files in the zip directory, irrespective of whether 
        there is already nifti data present (may be useful for exams which have
        multiple data types)
@@ -208,8 +254,8 @@ def data_unzip(unzip=True, remove_invalid_file=False, unzip_all=False):
     then unzip and convert to nifti
     
     Upon conversion to nifti, data are placed in 
-    DATA_PATH/SUBJECT_NAME/nifti/XNAT_EXPERIMENT_ID
-    ( e.g.  /cubric/collab/108_QA/3TE/nifti/XNAT_E11630 )
+    DATA_PATH/SUBJECT_NAME/nifti/QC_TYPE/XNAT_EXPERIMENT_ID
+    ( e.g.  /cubric/collab/108_QA/3TE/nifti/QC_TYPE/XNAT_E11630 )
     
     After completion, remove the temporary directories with dicoms (dicom_temp)
     and the zip directory (zip)
@@ -225,14 +271,12 @@ def data_unzip(unzip=True, remove_invalid_file=False, unzip_all=False):
     
     for ppt, ppt_xn in qcsubj.items():
         #set up temporary dicom directory (scanner level)
+        dir_zip = os.path.join(data_path, ppt, 'zip', qc_type)
         dicom_root = os.path.join(data_path,ppt,'dicom_temp')
-        nifti_root = os.path.join(data_path, ppt,'nifti')
-
+        nifti_root = os.path.join(data_path, ppt,'nifti', qc_type)
         if not os.path.isdir(dicom_root):
             os.mkdir(dicom_root)           
    
-        # directory of downloaded zip files
-        dir_zip = os.path.join(data_path, ppt, 'zip_spike')
         fls = os.listdir(dir_zip)
         for ff in fls:
             if 'XNAT' in ff[0:4] and '.zip' in ff[-4:]:
@@ -305,12 +349,20 @@ def clean_temp_directories():
         # recreate now, in case not running analysis in order 
         subprocess.run(['mkdir', d])
 
-def nifti_convert():
+def nifti_convert(qc_type):
     '''
-    convert files in dicom_temp dir to nifti.  
-    work in progress
+    Convert files in dicom_temp dir to nifti.  
+    Check for existing nii files in relevant nifti directory (from previous conversion),
+    and skip if nii file already exists for this exam.
+    
     
     Keep dicom_temp clean - delete after an unpacking attempt.
+    
+    Parameters
+    ----------
+    
+    qc_type        :  str
+                      Must be one of allowed_qc_type (defined above), e.g. 'glover', 'spikehead'
 
     Returns
     -------
@@ -327,7 +379,7 @@ def nifti_convert():
     for ppt, ppt_xn in qcsubj.items():
         #set up temporary dicom directory (scanner level)
         dicom_root = os.path.join(data_path, ppt,'dicom_temp')
-        nifti_root = os.path.join(data_path, ppt,'nifti_spike')
+        nifti_root = os.path.join(data_path, ppt,'nifti', qc_type)
         empty_nifti_dir(nifti_root, remove=True) # clean the nifti dir before starting
 
         fls = os.listdir(dicom_root)
@@ -387,9 +439,9 @@ def proc_qc(analyse_all=False):
 
     for s in scanners:
         print('Checking for new nifti files in '+ s)
-        nifti_path = os.path.join(data_path, s, 'nifti')
+        nifti_path = os.path.join(data_path, s, 'nifti_spike')
 #        report_path = os.path.join(data_path, s, 'fmriqc_glover/proc')
-        exam_list = os.listdir(os.path.join(data_path, s, 'nifti'))
+        exam_list = os.listdir(os.path.join(data_path, s, 'nifti_spike'))
         for e in exam_list:
             # find fmriqc data types
             series_list = os.listdir(os.path.join(nifti_path, e))
