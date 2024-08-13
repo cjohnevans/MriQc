@@ -113,7 +113,7 @@ def update_xnat_new():
                     exp_to_download = []
                     
                     # set up zip path for this scanner (subject)
-                    dir_zip = os.path.join(data_path, subj_id, 'zip')
+                    dir_zip = os.path.join(data_path, subj_id, 'zip_spike')
                     if not os.path.isdir(dir_zip):
                         os.mkdir(dir_zip)                     
                     
@@ -133,10 +133,20 @@ def update_xnat_new():
     print('File ' + download_new + ' updated')
 
 
-def xnat_download():
+def xnat_download(check_all_exams=False):
     """
-    xnat_download()
-    Check through list of XNAT experiments in DOWNLOAD_NEW and download from XNAT. 
+    xnat_download(check_all=False)
+    
+    Check through list of XNAT experiments in DOWNLOAD_NEW and download from XNAT.
+    Logic of this is updated, following update of XNAT.  Can no longer get all QA
+    relevant sequences in a single zip file, need to split up the data in different 
+    data downloads.  Download of full exam was failing, but series-by-series download
+    works OK.  It does make the directory structure more ungainly, and it makes to 
+    download process less efficient, as it needs to be re-run for each data type separately
+    
+    check_all_exams:  BOOLEAN.  If True, check all exams in 108QA project, not just the ones
+                      detected as new by update_downloaded().   
+    
     """
 
     # get list of new experiments to download   
@@ -160,14 +170,15 @@ def xnat_download():
                     qc_exp = subj[s].experiments #qc_exp is the qc experiments for this subject
 
                     # set up zip path for this scanner (subject)
-                    dir_zip = os.path.join(data_path, subj_id, 'zip')
+                    dir_zip = os.path.join(data_path, subj_id, 'zip_spike')
                     if not os.path.isdir(dir_zip):
                         os.mkdir(dir_zip)                     
                     
                     for ed in qc_exp:   #loop over xnat experiments for this subject
-                        if ed in exp_new:  # download if new
+                        if ed in exp_new or check_all_exams == True:  # download if new
                             zip_path = os.path.join(dir_zip, ed + '.zip')
-                            print('Downloading ' + ed + ' to ' + zip_path)
+                            print('Checking ' + ed )
+                            print(qc_exp[ed].scans)
                             try:
                                 qc_exp[ed].scans['EPIspike_head'].download(zip_path)
                                 qc_exp[ed].scans['EPIspike_body'].download(zip_path)
@@ -175,7 +186,7 @@ def xnat_download():
                                 print('!!!WARNING: Download of ' + ed + ' failed')
   
 
-def data_unzip(unzip=True, remove_invalid_file=False):
+def data_unzip(unzip=True, remove_invalid_file=False, unzip_all=False):
     """
     data_unzip()
     ------------
@@ -187,6 +198,11 @@ def data_unzip(unzip=True, remove_invalid_file=False):
     remove_invalid_file = Boolean
        if True, remove the .zip file following a failed check or attempted unzip
        if False, ignore the failed zip file.
+       
+    unzip_all = Boolean
+       if True, unzip all zip files in the zip directory, irrespective of whether 
+       there is already nifti data present (may be useful for exams which have
+       multiple data types)
     
     Following on from xnat_download(), check the experiment .zip files in DATA_PATH/SUBJECT_NAME/zip
     then unzip and convert to nifti
@@ -204,6 +220,9 @@ def data_unzip(unzip=True, remove_invalid_file=False):
 
     """
     print('\ndata_unzip:  Checking for XNAT zip files in ' + data_path)
+    # clean temp directories first
+    clean_temp_directories()
+    
     for ppt, ppt_xn in qcsubj.items():
         #set up temporary dicom directory (scanner level)
         dicom_root = os.path.join(data_path,ppt,'dicom_temp')
@@ -213,7 +232,7 @@ def data_unzip(unzip=True, remove_invalid_file=False):
             os.mkdir(dicom_root)           
    
         # directory of downloaded zip files
-        dir_zip = os.path.join(data_path, ppt, 'zip')
+        dir_zip = os.path.join(data_path, ppt, 'zip_spike')
         fls = os.listdir(dir_zip)
         for ff in fls:
             if 'XNAT' in ff[0:4] and '.zip' in ff[-4:]:
@@ -222,10 +241,9 @@ def data_unzip(unzip=True, remove_invalid_file=False):
                 # data structure is dicom_exp_dir/dicom_scan_dir/scans/
                 dicom_exp_dir = os.path.join(dicom_root,exp_id)
                 nifti_exp_dir = os.path.join(nifti_root, exp_id)
-                # perform unzipping, but skip if unpacked directory exists
-                if os.path.isdir(dicom_exp_dir) or os.path.isdir(nifti_exp_dir): 
-                    print(ff, 'Skipping  - previous unzip or nifti exists in ', ppt)
-                else:
+                # perform unzipping, but only if unzip_all is True OR
+                #  either the dicom or nifti directory exists.
+                if unzip_all==True or not os.path.isdir(dicom_exp_dir) or not os.path.isdir(nifti_exp_dir): 
                     if unzip == True:
                         # suppress output - errors are verbose
                         sb = subprocess.run(['unzip', '-q', '-d', dicom_exp_dir, zip_file], \
@@ -245,6 +263,8 @@ def data_unzip(unzip=True, remove_invalid_file=False):
                             print(ff, '!!! ERROR - Unzipping ' + zip_file + ' failed. File removed.')
                         else:
                             print(ff, '!!! ERROR - Unzipping ' + zip_file + ' failed. File not removed')
+                else:
+                    print(ff, 'Skipping  - previous unzip or nifti exists in ', ppt)
 
 def empty_nifti_dir(nifti_dir, remove=False):
     """
@@ -266,6 +286,24 @@ def empty_nifti_dir(nifti_dir, remove=False):
     if len(empty_dirs) > 0 and remove == True:
         print("Empty directories removed")
 
+def clean_temp_directories():
+    """
+    clean_temp_directories()
+    
+    Clean up temporary directories to try to prevent reanalysis of
+    data when switching between branches
+
+    Returns
+    -------
+    None.
+
+    """
+    for qd in qcsubj.keys():
+        d=os.path.join(data_path,qd,'dicom_temp')
+        print('removing ' + d)
+        subprocess.run(['rm', '-r', d])
+        # recreate now, in case not running analysis in order 
+        subprocess.run(['mkdir', d])
 
 def nifti_convert():
     '''
@@ -289,7 +327,7 @@ def nifti_convert():
     for ppt, ppt_xn in qcsubj.items():
         #set up temporary dicom directory (scanner level)
         dicom_root = os.path.join(data_path, ppt,'dicom_temp')
-        nifti_root = os.path.join(data_path, ppt,'nifti')
+        nifti_root = os.path.join(data_path, ppt,'nifti_spike')
         empty_nifti_dir(nifti_root, remove=True) # clean the nifti dir before starting
 
         fls = os.listdir(dicom_root)
@@ -313,10 +351,10 @@ def nifti_convert():
                             stdout=subprocess.DEVNULL)
                     if sb.returncode == 0:
                         # returns 0 if no errors during unzip 
-                        print(ff, 'OK        - Convert from ' + dicom_exp_dir + ' succeeded')
+                        print(ff, 'OK        - Convert from ' + dicom_exp_dir + ' succeeded')                        
                     else:
                         print(ff, '!!! ERROR - Convert ' + dicom_exp_dir + ' failed.  Error=' + sb.returncode)
-                
+        # clear d        
              
 def proc_qc(analyse_all=False):
     """
