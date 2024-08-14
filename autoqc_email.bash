@@ -8,7 +8,9 @@ convert -append /cubric/collab/108_QA/QA7T/fmriqc_glover/summary/7T_fmriqc_lates
 
 #/home/sapje1/code/python_mrobjects/qc/autoqc_status.py | mailx -r mriqc@cardiff.ac.uk -s "fmriqc (Glover)" -a /cubric/collab/108_QA/fmriqc_latest.png evansj31@cardiff.ac.uk
 
-/home/sapje1/code/python_mrobjects/qc/autoqc_status.py  | tail -n 5 | mailx -r mriqc@cardiff.ac.uk -s "fmriqc (Glover)" -a /cubric/collab/108_QA/fmriqc_latest.png evansj31@cardiff.ac.uk
+#/home/sapje1/code/python_mrobjects/qc/autoqc_status.py  | tail -n 5 | mailx -r mriqc@cardiff.ac.uk -s "fmriqc (Glover)" -a /cubric/collab/108_QA/fmriqc_latest.png evansj31@cardiff.ac.uk
+/home/sapje1/code/python_mrobjects/qc/autoqc_status.py  | tail -n 5 | mailx -r mriqc@cardiff.ac.uk -s "fmriqc (Glover)" -a /cubric/collab/108_QA/fmriqc_latest.png 5ed88dc2.cf.onmicrosoft.com@emea.teams.ms
+
 
 spikefiles=`find /cubric/collab/108_QA -ipath '*spike_stats.png' -ctime -1 | xargs`
 

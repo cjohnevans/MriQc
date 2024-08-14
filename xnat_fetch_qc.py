@@ -30,7 +30,7 @@ qcsubj = { 'QA7T' : 'XNAT_S06014',
            'QA3TW' : 'XNAT_S06091'
         }
 
-allowed_qc_type = ['glover', 'spikehead', 'spikebody']
+allowed_qc_type = ['fmriqc', 'spikehead', 'spikebody']
 
 def update_downloaded(qc_type):
     """
@@ -43,12 +43,12 @@ def update_downloaded(qc_type):
     It should be run before any other calls in this module.
     
     DOWNLOAD_DONE is rewritten on each call (so will update for different data types, e.g.
-    when called for spike_head after Glover, etc)
+    when called for spike_head after fmriqc, etc)
     
     Parameters
     ----------
     qc_type        :  str
-                      Must be one of allowed_qc_type (defined above), e.g. 'glover', 'spikehead'
+                      Must be one of allowed_qc_type (defined above), e.g. 'fmriqc', 'spikehead'
  
     Returns
     -------
@@ -98,7 +98,7 @@ def update_xnat_new(qc_type):
     Parameters
     ----------
     qc_type        :  str
-                      Must be one of allowed_qc_type (defined above), e.g. 'glover', 'spikehead'
+                      Must be one of allowed_qc_type (defined above), e.g. 'fmriqc', 'spikehead'
  
     Returns
     -------
@@ -108,7 +108,7 @@ def update_xnat_new(qc_type):
     if qc_type not in allowed_qc_type:
         print(qc_type + " is not an allowed qc type.  update_xnat_new() failed")
         return False
-    if qc_type == 'glover':
+    if qc_type == 'fmriqc':
         qc_series_name = 'GloverGSQAP'
     if qc_type == 'spikehead':
         qc_series_name = 'EPIspike_head'
@@ -175,7 +175,7 @@ def xnat_download(qc_type, check_all_exams=False):
     ----------
     
     qc_type        :  str
-                      Must be one of allowed_qc_type (defined above), e.g. 'glover', 'spikehead'
+                      Must be one of allowed_qc_type (defined above), e.g. 'fmriqc', 'spikehead'
     
     check_all_exams:  boolean.  
                       If True, check all exams in 108QA project, not just the ones
@@ -185,7 +185,7 @@ def xnat_download(qc_type, check_all_exams=False):
     if qc_type not in allowed_qc_type:
         print(qc_type + " is not an allowed qc type.  xnat_download() failed")
         return False  
-    if qc_type == 'glover':
+    if qc_type == 'fmriqc':
         qc_series_name = 'GloverGSQAP'
     if qc_type == 'spikehead':
         qc_series_name = 'EPIspike_head'
@@ -235,7 +235,7 @@ def data_unzip(qc_type, unzip=True, remove_invalid_file=False, unzip_all=False):
     ----------
     
     qc_type        :  str
-                      Must be one of allowed_qc_type (defined above), e.g. 'glover', 'spikehead'
+                      Must be one of allowed_qc_type (defined above), e.g. 'fmriqc', 'spikehead'
    
     unzip          :  Boolean
                       if True performs the extraction, if False, runs a zip file test (unzip -t)
@@ -265,6 +265,10 @@ def data_unzip(qc_type, unzip=True, remove_invalid_file=False, unzip_all=False):
     None.
 
     """
+    if qc_type not in allowed_qc_type:
+        print(qc_type + " is not an allowed qc type.  xnat_download() failed")
+        return False  
+    
     print('\ndata_unzip:  Checking for XNAT zip files in ' + data_path)
     # clean temp directories first
     clean_temp_directories()
@@ -362,7 +366,7 @@ def nifti_convert(qc_type):
     ----------
     
     qc_type        :  str
-                      Must be one of allowed_qc_type (defined above), e.g. 'glover', 'spikehead'
+                      Must be one of allowed_qc_type (defined above), e.g. 'fmriqc', 'spikehead'
 
     Returns
     -------
@@ -370,10 +374,10 @@ def nifti_convert(qc_type):
 
     '''
 
-    # set up nifti directory (scanner level)    
-    # not sure if I want this... better to check for absent dirs
-    # rather than empty dirs
-    
+    if qc_type not in allowed_qc_type:
+        print(qc_type + " is not an allowed qc type.  xnat_download() failed")
+        return False  
+     
     print('\nnifti_convert: Checking for dicom data in ' + data_path)
     
     for ppt, ppt_xn in qcsubj.items():
@@ -408,7 +412,7 @@ def nifti_convert(qc_type):
                         print(ff, '!!! ERROR - Convert ' + dicom_exp_dir + ' failed.  Error=' + sb.returncode)
         # clear d        
              
-def proc_qc(analyse_all=False):
+def proc_qc(qc_type, analyse_all=False):
     """
     proc_fmriqc(analyse_all=False):
 
@@ -418,12 +422,14 @@ def proc_qc(analyse_all=False):
        get the names of the report directories in the scanner/summary directories
        only analyse the niftis where there is no existing report        
 
-
     Parameters
     ----------
-    analyse_all : BOOL, optional
-        Reanalyse all data. The default is False.  True will reanalyse all data, irrespective
-        of whether output already exists.
+    qc_type        :  str
+                      Must be one of allowed_qc_type (defined above), e.g. 'fmriqc', 'spikehead'
+    
+    analyse_all    :  BOOL, optional
+                      Reanalyse all data. If True then reanalyse all data, irrespective
+                      of whether output already exists.
 
     Returns
     -------
@@ -431,54 +437,42 @@ def proc_qc(analyse_all=False):
 
     """
     
+    if qc_type not in allowed_qc_type:
+        print(qc_type + " is not an allowed qc type.  xnat_download() failed")
+        return False  
+    if qc_type == 'fmriqc':
+        qc_series_name = 'GloverGSQAP'
+    if qc_type == 'spikehead':
+        qc_series_name = 'EPIspike_head'
+    if qc_type == 'spikebody':
+        qc_series_name = 'EPIspike_body'
+    
+    
     # set up paths
     data_path = '/cubric/collab/108_QA'
     scanners = ['QA7T', 'QA3TW', 'QA3TE', 'QA3TM']
     nifti_path = []
-    report_path = []
 
     for s in scanners:
-        print('Checking for new nifti files in '+ s)
-        nifti_path = os.path.join(data_path, s, 'nifti_spike')
-#        report_path = os.path.join(data_path, s, 'fmriqc_glover/proc')
-        exam_list = os.listdir(os.path.join(data_path, s, 'nifti_spike'))
+        print('Checking for new ' + qc_type + ' data in '+ s)
+        nifti_path = os.path.join(data_path, s, 'nifti', qc_type)
+        exam_list = os.listdir(nifti_path)
         for e in exam_list:
             # find fmriqc data types
             series_list = os.listdir(os.path.join(nifti_path, e))
             for se in series_list:
                 se_no_ext = se.split('.')[0] # filename, no extension
-                scan_date = se_no_ext[0:8]
-                if 'GloverGSQAP.nii' in se:
-                    rep_path = os.path.join(data_path, s, 'fmriqc_glover/proc',se_no_ext)
+                scan_date = se_no_ext[0:17c]
+                if qc_series_name in se and '.nii' in se:
+                    rep_path = os.path.join(data_path, s, qc_type, 'proc',se_no_ext)
                     try:
                         os.listdir(rep_path)
                     except:
                         print(se_no_ext + ' is new... Analysing...')
-                        fmri_qc = mriqc.FmriQc(os.path.join(nifti_path, e, se) \
+                        if qc_type == 'fmriqc':
+                            mriqc.FmriQc(os.path.join(nifti_path, e, se) \
                                   , report_path = rep_path)
-                if 'Warmingup.nii' in se or 'WarmingUp.nii' in se:
-                    rep_path = os.path.join(data_path, s, 'fmriqc_warmup/proc', se_no_ext)
-                    try:
-                        os.listdir(rep_path)
-                    except:
-                        print(se_no_ext + ' is new... Analysing...')
-                        fmri_qc = mriqc.FmriQc(os.path.join(nifti_path, e, se) \
-                                  , report_path = rep_path)
-                if 'QC_MB_GRE_EPI_FA15_Tx220V.nii' in se:
-                    rep_path = os.path.join(data_path, s, 'fmriqc_MB/proc', se_no_ext)
-                    try:
-                        os.listdir(rep_path)
-                    except:
-                        print(se_no_ext + ' is new... Analysing...')
-                        fmri_qc = mriqc.FmriQc(os.path.join(nifti_path, e, se) \
-                                  , report_path = rep_path)
-                if 'spike' in se:
-                    if '.nii' in se:
-                        rep_path = os.path.join(data_path, s, 'spike/proc',se_no_ext)
-                        try:
-                            os.listdir(rep_path)
-                        except:
-                            print(se_no_ext + ' is new... Analysing...')
+                        if qc_type == 'spikehead' or qc_type == 'spikebody':
                             plttitle= s + '_' + scan_date
                             mriqc.SpikeQc(os.path.join(nifti_path,e,se) \
                                     , report_path=rep_path).spike_check(plttitle)
