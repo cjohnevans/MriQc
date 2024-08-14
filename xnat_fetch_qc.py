@@ -50,7 +50,7 @@ def update_downloaded():
     
     print('update_downloaded: Checking for downloaded nifti data in ' + data_path)
     for qd in qcsubj.keys():
-        qdir = os.path.join(data_path,qd,'nifti')
+        qdir = os.path.join(data_path,qd,'nifti','fmriqc')
         list1 = os.listdir(qdir)
         exp_done_ppt = []
     
@@ -113,7 +113,7 @@ def update_xnat_new():
                     exp_to_download = []
                     
                     # set up zip path for this scanner (subject)
-                    dir_zip = os.path.join(data_path, subj_id, 'zip')
+                    dir_zip = os.path.join(data_path, subj_id, 'zip', 'fmriqc')
                     if not os.path.isdir(dir_zip):
                         os.mkdir(dir_zip)                     
                     
@@ -160,7 +160,7 @@ def xnat_download():
                     qc_exp = subj[s].experiments #qc_exp is the qc experiments for this subject
 
                     # set up zip path for this scanner (subject)
-                    dir_zip = os.path.join(data_path, subj_id, 'zip')
+                    dir_zip = os.path.join(data_path, subj_id, 'zip', 'fmriqc')
                     if not os.path.isdir(dir_zip):
                         os.mkdir(dir_zip)                     
                     
@@ -206,13 +206,13 @@ def data_unzip(unzip=True, remove_invalid_file=False):
     for ppt, ppt_xn in qcsubj.items():
         #set up temporary dicom directory (scanner level)
         dicom_root = os.path.join(data_path,ppt,'dicom_temp')
-        nifti_root = os.path.join(data_path, ppt,'nifti')
+        nifti_root = os.path.join(data_path, ppt,'nifti','fmriqc')
 
         if not os.path.isdir(dicom_root):
             os.mkdir(dicom_root)           
    
         # directory of downloaded zip files
-        dir_zip = os.path.join(data_path, ppt, 'zip')
+        dir_zip = os.path.join(data_path, ppt, 'zip', 'fmriqc')
         fls = os.listdir(dir_zip)
         for ff in fls:
             if 'XNAT' in ff[0:4] and '.zip' in ff[-4:]:
@@ -288,7 +288,7 @@ def nifti_convert():
     for ppt, ppt_xn in qcsubj.items():
         #set up temporary dicom directory (scanner level)
         dicom_root = os.path.join(data_path, ppt,'dicom_temp')
-        nifti_root = os.path.join(data_path, ppt,'nifti')
+        nifti_root = os.path.join(data_path, ppt,'nifti','fmriqc')
         empty_nifti_dir(nifti_root, remove=True) # clean the nifti dir before starting
 
         fls = os.listdir(dicom_root)
@@ -348,9 +348,9 @@ def proc_qc(analyse_all=False):
 
     for s in scanners:
         print('Checking for new nifti files in '+ s)
-        nifti_path = os.path.join(data_path, s, 'nifti')
+        nifti_path = os.path.join(data_path, s, 'nifti','fmriqc')
 #        report_path = os.path.join(data_path, s, 'fmriqc_glover/proc')
-        exam_list = os.listdir(os.path.join(data_path, s, 'nifti'))
+        exam_list = os.listdir(nifti_path)
         for e in exam_list:
             # find fmriqc data types
             series_list = os.listdir(os.path.join(nifti_path, e))
@@ -358,7 +358,7 @@ def proc_qc(analyse_all=False):
                 se_no_ext = se.split('.')[0] # filename, no extension
                 scan_date = se_no_ext[0:8]
                 if 'GloverGSQAP.nii' in se:
-                    rep_path = os.path.join(data_path, s, 'fmriqc_glover/proc',se_no_ext)
+                    rep_path = os.path.join(data_path, s, 'fmriqc','proc',se_no_ext)
                     try:
                         os.listdir(rep_path)
                     except:
