@@ -30,6 +30,8 @@ import xnat_fetch_qc as xnqc
 xnqc.update_downloaded()
 
 # get new qc data from xnat
+# this is much slower after commit bbdf96e as it now requires the series labels
+# to be checked, rather than just the experiment ids.
 xnqc.update_xnat_new()
 
 # check status of latest sessions

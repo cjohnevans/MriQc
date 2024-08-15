@@ -158,7 +158,6 @@ def update_xnat_new(qc_type):
     session.disconnect()
     print('File ' + download_new + ' updated')
 
-
 def xnat_download(qc_type, check_all_exams=False):
     """
     xnat_download(check_all=False)
@@ -223,7 +222,6 @@ def xnat_download(qc_type, check_all_exams=False):
                             except:
                                 print('WARNING: No ' + qc_series_name + ' found in ' + ed)
   
-
 def data_unzip(qc_type, unzip=True, remove_invalid_file=False, unzip_all=False):
     """
     data_unzip()
@@ -406,8 +404,7 @@ def nifti_convert(qc_type):
                         # returns 0 if no errors during unzip 
                         print(ff, 'OK        - Convert from ' + dicom_exp_dir + ' succeeded')                        
                     else:
-                        print(ff, '!!! ERROR - Convert ' + dicom_exp_dir + ' failed.  Error=' + sb.returncode)
-        # clear d        
+                        print(ff, '!!! ERROR - Convert ' + dicom_exp_dir + ' failed.  Error=' + sb.returncode)      
              
 def proc_qc(qc_type, analyse_all=False):
     """
@@ -483,7 +480,6 @@ def check_qc():
         print('Summary of ' + s)
         nifti_sess = os.listdir(os.path.join(data_path, s, 'nifti'))
         print('Number of sessions with niftis:'  + str(len(nifti_sess)))
-
 
 def fetch_qc(download=True, unzip=True, proc_fmri=True):
     update_xnat_new()
