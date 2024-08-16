@@ -3,40 +3,16 @@
 ''' 
  autoqc_status.py
  
- check the status of;
-     - the downloaded data
-     - new data available on xnat
-     - existing analyses
- 
-  Updates the download/available file lists
-     - xnat_download_done.txt
-     - xnat_new.txt
-
-
- ORDER:
-    autoqc_status.py
-    autoqc_xnat_fetch.py
-    autoqc_process.py
-
+ Check the status of existing analyses
 
  CJE Jan 2024
 '''
 
 import sys, os
 sys.path.append('/home/sapje1/code/MriQc')
-import xnat_fetch_qc as xnqc
 
 qc_types = ['fmriqc', 'spikehead', 'spikebody']
 data_path = '/cubric/collab/108_QA/'
-
-# get list of downloaded datasets from /cubric/collab/108_QA2023
-#xnqc.update_downloaded(qc_type=qc)
-
-# get new qc data from xnat
-# this is much slower after commit bbdf96e as it now requires the series labels
-# to be checked, rather than just the experiment ids.
-#xnqc.update_xnat_new(qc_type=qc)
-
 scannerlist = ['QA7T', 'QA3TM', 'QA3TW','QA3TE']
 
 # Alternative method, which works for spikehead, spikebody too:
