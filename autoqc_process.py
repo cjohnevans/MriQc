@@ -21,7 +21,7 @@ import sys
 sys.path.append('/home/sapje1/code/MriQc')
 import xnat_fetch_qc as xnqc
 
-qc_types = ['spikebody']
+qc_types = ['fmriqc', 'spikehead', 'spikebody']
 
 for qc in qc_types:
     xnqc.update_downloaded(qc_type=qc)
