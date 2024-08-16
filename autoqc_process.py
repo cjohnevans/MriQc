@@ -19,7 +19,7 @@
 
 import sys
 sys.path.append('/home/sapje1/code/MriQc')
-import xnat_fetch_qc as xnqc
+import mriqc_xnat as xnqc
 
 qc_types = ['fmriqc', 'spikehead', 'spikebody']
 

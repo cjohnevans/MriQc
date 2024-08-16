@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-xnat_fetch_qc.py
+mriqc_xnat.py
 
 Collect qc data from xnat project 108 using xnatpy
 Created on Wed Aug 16 14:37:20 2023
@@ -306,8 +306,6 @@ def data_unzip(qc_type, unzip=True, remove_invalid_file=False, unzip_all=False):
                             print(ff, '!!! ERROR - Unzipping ' + zip_file + ' failed. File removed.')
                         else:
                             print(ff, '!!! ERROR - Unzipping ' + zip_file + ' failed. File not removed')
-                else:
-                    print(ff, 'Skipping  - previous unzip or nifti exists in ', ppt)
 
 def empty_nifti_dir(nifti_dir, remove=False):
     """
@@ -343,7 +341,6 @@ def clean_temp_directories():
     """
     for qd in qcsubj.keys():
         d=os.path.join(data_path,qd,'dicom_temp')
-        print('removing ' + d)
         subprocess.run(['rm', '-r', d])
         # recreate now, in case not running analysis in order 
         subprocess.run(['mkdir', d])
