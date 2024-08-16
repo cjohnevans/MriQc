@@ -285,8 +285,8 @@ def data_unzip(qc_type, unzip=True, remove_invalid_file=False, unzip_all=False):
                 dicom_exp_dir = os.path.join(dicom_root,exp_id)
                 nifti_exp_dir = os.path.join(nifti_root, exp_id)
                 # perform unzipping, but only if unzip_all is True OR
-                #  either the dicom or nifti directory exists.
-                if unzip_all==True or not os.path.isdir(dicom_exp_dir) or not os.path.isdir(nifti_exp_dir): 
+                # nifti directory exists.
+                if unzip_all==True or not os.path.isdir(nifti_exp_dir): 
                     if unzip == True:
                         # suppress output - errors are verbose
                         sb = subprocess.run(['unzip', '-q', '-d', dicom_exp_dir, zip_file], \

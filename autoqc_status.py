@@ -22,33 +22,49 @@
  CJE Jan 2024
 '''
 
-import sys
+import sys, os
 sys.path.append('/home/sapje1/code/MriQc')
 import xnat_fetch_qc as xnqc
 
+qc_types = ['fmriqc', 'spikehead', 'spikebody']
+data_path = '/cubric/collab/108_QA/'
+
 # get list of downloaded datasets from /cubric/collab/108_QA2023
-xnqc.update_downloaded()
+#xnqc.update_downloaded(qc_type=qc)
 
 # get new qc data from xnat
 # this is much slower after commit bbdf96e as it now requires the series labels
 # to be checked, rather than just the experiment ids.
-xnqc.update_xnat_new()
+#xnqc.update_xnat_new(qc_type=qc)
 
-# check status of latest sessions
-def read_last_qc(scanner, fname):
-    with open(fname,'r') as ff:
-        header=ff.readline()
-        lastqc=ff.readline() 
-    return lastqc
+scannerlist = ['QA7T', 'QA3TM', 'QA3TW','QA3TE']
 
-scannerlist = ['7T ', '3TM', '3TW','3TE']
-filelist = ['/cubric/collab/108_QA/QA7T/fmriqc_glover/summary/7T_fmriqc_latest.txt', \
-           '/cubric/collab/108_QA/QA3TM/fmriqc_glover/summary/3TM_fmriqc_latest.txt', \
-           '/cubric/collab/108_QA/QA3TW/fmriqc_glover/summary/3TW_fmriqc_latest.txt', \
-           '/cubric/collab/108_QA/QA3TE/fmriqc_glover/summary/3TE_fmriqc_latest.txt']
+# Alternative method, which works for spikehead, spikebody too:
+# check for latest directory in the proc folder
 
-print('\nautoqc_status: Checking for latest QC analyses')
-for ii in range(0,4):
-    last_qc = read_last_qc(scannerlist[ii], filelist[ii])
-    print(scannerlist[ii] + ' last QC: ' + last_qc[:-1])
+for scanner in scannerlist:
+    print('-----------------------------------------')
+    for qc in qc_types:
+        dd = os.path.join(data_path, scanner, qc, 'proc')
+        qc_dates = []
+        proc_files = os.listdir(dd)
+        if len(proc_files) > 0: 
+            for f in proc_files:
+                fsplt = f.split('-')[0:2] # take first two (date, time)
+                if len(fsplt[0]) > 8:  # it's XA yyyy_mm_dd convention: reduce to yy_mm_dd
+                    fsplt0new = fsplt[0][2:]
+                else:
+                    fsplt0new = fsplt[0]
+        #        print(fsplt[0] + '   >>>    ' + fsplt0new)
+                qc_dates.append(fsplt0new + '-' + fsplt[1])
+            qc_dates.sort()
+            latest_date = qc_dates[-1]
+        else:
+            latest_date = '!!no qc data'
+        if qc == 'fmriqc':
+            pad = '   '
+        else:
+            pad = ''
+        print(scanner + ' last ' + qc + pad +' ' + latest_date)
+        
 

@@ -12,7 +12,6 @@
 
  ORDER:
     autoqc_status.py
-    autoqc_xnat_fetch.py
     autoqc_process.py
  
  CJE Jan 2024
@@ -21,13 +20,15 @@
 import sys
 sys.path.append('/home/sapje1/code/MriQc')
 import xnat_fetch_qc as xnqc
-import mriqc
 
-# get new qc data from xnat
-xnqc.data_unzip(unzip=True, remove_invalid_file=True)
-xnqc.nifti_convert()
+qc_types = ['spikebody']
 
-# process QC data
-xnqc.proc_qc()
+for qc in qc_types:
+    xnqc.update_downloaded(qc_type=qc)
+    xnqc.update_xnat_new(qc_type=qc)
+    xnqc.xnat_download(qc_type=qc)
+    xnqc.data_unzip(qc_type=qc, unzip=True, remove_invalid_file=True)
+    xnqc.nifti_convert(qc_type=qc)
+    xnqc.proc_qc(qc_type=qc)
 
 
