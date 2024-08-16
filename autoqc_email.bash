@@ -33,8 +33,8 @@ do
 done
 
 # ------------- spike recent ---------------------
-#spikefiles=`find /cubric/collab/108_QA -ipath '*spike_stats.png' -ctime -1 | xargs`
-spikefiles=`find /cubric/collab/108_QA -ipath '*spike_stats.png' -mmin -240 | xargs`
+spikefiles=`find /cubric/collab/108_QA -ipath '*spike_stats.png' -ctime -1 | xargs`
+#spikefiles=`find /cubric/collab/108_QA -ipath '*spike_stats.png' -mmin -240 | xargs`
 
 # loop over spikefiles, and email the new ones
 for ss in $spikefiles
