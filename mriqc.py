@@ -194,7 +194,6 @@ class BasicQc:
         uniform_desc['pixel scaled'] = (uniform_desc['pixel values'] / sig_median) - 1
         print(uniform_desc)
 
-
 # MultiVolQc is generic for checking multi-volume MR data (e.g. fmri, qmt)
 class MultiVolQc:
     '''
@@ -353,16 +352,23 @@ class MultiVolQc:
          slice_mean = np.mean(np.mean(np.mean(self.vol_data, axis=3), axis=2),axis=0).T 
          slice_mean = np.tile(slice_mean,[self.shape[0],1]).T
          slice_time = slice_time - slice_mean
-
-         fig = plt.figure(figsize=(30/2.5, 20/2.5))
+         
+         # slice_time [0] is slices, [1] is volumes
+         aspect_r = slice_time.shape[1]/slice_time.shape[0]
+         if aspect_r > 3:
+             aspect_r = 3
+         if aspect_r < 0.3:
+             aspect_r = 0.3
+         w = 30
+         h = w/aspect_r
+         fig = plt.figure(figsize=(w/2.5, h/2.5))
          ax = fig.subplots()
          ax.set_title('Mean signal per slice, volume')
          ax.set_xlabel('Volume No.')
          ax.set_ylabel('Slice No.')
-         im = ax.imshow(slice_time, cmap='plasma')
+         im = ax.imshow(slice_time, cmap='plasma', aspect='auto')
          if save_png:
-             fig.savefig(os.path.join(self.report_path,'slice_time.png'))
-                 
+             fig.savefig(os.path.join(self.report_path,'slice_time.png'))                
 
 # methods specific to fmri
 class FmriQc(MultiVolQc):
@@ -839,7 +845,8 @@ class SpikeQc(MultiVolQc):
         self.spike_slices = self.vol_data[spike_idx,:,:,:]
 
         # mean sig plot, with outliers
-        fig1,ax1 = plt.subplots(1,2)
+        fig1 = plt.figure(figsize=(30/2.5, 15/2.5))
+        ax1 = fig1.subplots(1,2)
         v=range(len(slice_mean))
         ax1[0].plot(v,slice_mean)
         ax1[0].scatter(spike_idx,slice_mean[spike_idx],marker='o', color='red')
@@ -852,24 +859,23 @@ class SpikeQc(MultiVolQc):
         fig1.savefig(os.path.join(self.report_path,plot_title+'_spike_stats'))
 
         # plot slice images
-        plot_row_max=5
-        plot_col_max=5
+        plot_row_max=3
+        plot_col_max=3
         fig = plt.figure(figsize=(30/2.5, 30/2.5))
         ax = fig.subplots(plot_row_max,plot_col_max)
         for row in range(plot_row_max):
             for col in range(plot_col_max):
                 ax[row][col].set_axis_off()
-        if spike_idx.size > 15:
-            plot_sl=15
+        if spike_idx.size > plot_row_max*plot_col_max:
+            plot_sl = plot_row_max*plot_col_max
         else:
             plot_sl=spike_idx.size
         used_rows = np.floor_divide(plot_sl,plot_col_max)
         for sl in range(plot_sl):
             rr = np.floor_divide(sl,plot_col_max)
             cc = np.mod(sl,plot_col_max)
-            ax[rr][cc].imshow(self.spike_slices[sl,0,:,:], cmap='hsv')
+            ax[rr][cc].imshow(self.spike_slices[sl,0,:,:], cmap='gray')
         fig.savefig(os.path.join(self.report_path,plot_title+'_spike_images'))
-
             
 class QcOverview():
     '''
