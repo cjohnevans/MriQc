@@ -392,7 +392,7 @@ def nifti_convert(qc_type):
                 else:
                     os.mkdir(nifti_exp_dir)
                     #print(ff, 'Running dcm2niix and outputing to  ' + nifti_exp_dir)
-                    sb = subprocess.run(['dcm2niix', \
+                    sb = subprocess.run(['/cubric/software/bin/dcm2niix', \
                             '-f', '%i_%s_%d',\
                             '-o', nifti_exp_dir,
                             dicom_scan_dir] , \
