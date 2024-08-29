@@ -25,10 +25,14 @@ do
 #      $recent/slice_time.png $recent/drift_correct.png $outfile
 # for some reason, this one doesn't like the reply-to field??
     title="fmriqc Recent"$combine
+
     echo "Recent fmriqc report from "$ff | \
-     mailx -s "fmriqc Recent" -a $outfile 5ed88dc2.cf.onmicrosoft.com@emea.teams.ms
-#    echo "Recent fmriqc report" | \
-#     mailx -r mriqc@cardiff.ac.uk -s "fmriqc Recent" -a $outfile 5ed88dc2.cf.onmicrosoft.com@emea.teams.ms
+      mailx -s "fmriqc Recent" -a $ff/SFNR.png \
+      -a $ff/slice_time.png \
+      -a $ff/drift_correct.png \
+      -a $ff/pixel_histogram.png \
+      5ed88dc2.cf.onmicrosoft.com@emea.teams.ms
+    
 
 done
 
