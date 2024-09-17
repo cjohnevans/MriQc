@@ -20,6 +20,7 @@
 import sys
 sys.path.append('/home/sapje1/code/MriQc')
 import mriqc_xnat as xnqc
+import mriqc
 
 qc_types = ['fmriqc', 'spikehead', 'spikebody']
 
@@ -31,4 +32,7 @@ for qc in qc_types:
     xnqc.nifti_convert(qc_type=qc)
     xnqc.proc_qc(qc_type=qc)
 
-
+mriqc.FmriQcOverview('3TW','/cubric/collab/108_QA/QA3TW/fmriqc/', email_summary=False)
+mriqc.FmriQcOverview('7T','/cubric/collab/108_QA/QA7T/fmriqc/', email_summary=False)
+mriqc.FmriQcOverview('3TE','/cubric/collab/108_QA/QA3TE/fmriqc/', email_summary=False)
+mriqc.FmriQcOverview('3TM','/cubric/collab/108_QA/QA3TM/fmriqc/', email_summary=False)
