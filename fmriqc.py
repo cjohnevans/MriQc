@@ -23,11 +23,12 @@ else:
     filename = sys.argv[1]
     if sys.argv[2] == 'y' or sys.argv[2] == 'Y':
         in_vivo = True
-    if sys.argv[2] == 'n' or sys.argv[2] == 'N':
+    elif sys.argv[2] == 'n' or sys.argv[2] == 'N':
         in_vivo = False
     else:
         splash()
-        print("!!! ISINVIVO should be 'y' or 'n'")
+        print("!!! ISINVIVO is " + sys.argv[2] + " (should be 'y' or 'n')")
+        sys.exit()
     fmri = mriqc.FmriQc(filename, in_vivo, run_report=True)
 
 
