@@ -778,7 +778,7 @@ class DwGradAxis:
 
                 Equation being solved here is 
                    --------------        
-                -\/  ln(s0/sdiff)  = k(1+e) G_ideal
+                   ln(s0/sdiff)  = k(1+e) G_ideal
                 where
                 G_ideal is the ideal gradient (i.e. that requested)
                 k is a constant containing timing terms, effective diffusion, gamma

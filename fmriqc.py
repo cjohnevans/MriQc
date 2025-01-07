@@ -1,3 +1,4 @@
+#!/home/john/miniconda3/envs/mri/bin/python
 import sys
 sys.path.append('/home/sapje1/code/python_mrobjects/qc')
 import mriqc
