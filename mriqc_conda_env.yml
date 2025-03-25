@@ -1,0 +1,12 @@
+name: mri_test
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - numpy
+  - pandas
+  - matplotlib
+  - ipython
+  - spyder
+  - notebook 
+  - nibabel
