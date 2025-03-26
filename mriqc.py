@@ -558,6 +558,15 @@ class FmriQc(MultiVolQc):
             + "mean_VOI    =  {0:.2f}\n".format(mean_voi)\
             + "std_VOI     =  {0:.2f}\n".format(sd_voi)\
             + "drift (%)   =  {0:.2f}".format(drift) )
+        
+        self.summary = { "sfnr_volume" : sfnr_vol,\
+                        "mean_volume" : mean_vol,\
+                        "std_volume": sd_vol,\
+                        "sfnr_VOI" : sfnr_voi,\
+                        "mean_VOI"  :mean_voi,\
+                        "std_VOI" : sd_voi,\
+                        "drift" : drift }
+            
 
 class MultiVolDiffusion(MultiVolQc):
     '''
