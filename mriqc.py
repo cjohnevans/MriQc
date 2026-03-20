@@ -243,6 +243,14 @@ class MultiVolQc:
         else:
             self.is_multi_volume = False
             self.n_vols = 1
+
+        # check for signal saturation,  Max is 65,500 for float16 of DICOM
+        f16_max = np.finfo(np.float16).max
+        if np.max(self.vol_data) >= f16_max:
+            print("WARNING:  Signal near saturation - this may cause problems.")
+            print("Setting inf to the ceiling for now, but check input data.")
+            inf_mask = np.isinf(self.vol_data) | (self.vol_data > f16_max)
+            np.copyto(self.vol_data, f16_max, where=inf_mask)
             
     def basic_stats(self, savenii=False, lthresh=0.1):
         '''
